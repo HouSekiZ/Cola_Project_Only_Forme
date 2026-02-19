@@ -1,1 +1,6 @@
-"# Cola_Project_Only_Forme" 
+วิธีรัน: python app.py
+requirement
+flask
+opencv-python
+mediapipe
+numpy
