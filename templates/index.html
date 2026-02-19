@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Assist - ระบบช่วยเหลือผู้ป่วย</title>
+    <style>
+        /* ── Camera Selector ── */
+        .camera-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 12px 0 4px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .camera-selector label {
+            font-size: 0.85rem;
+            color: #aaa;
+            white-space: nowrap;
+        }
+
+        .camera-selector select {
+            flex: 1;
+            min-width: 180px;
+            max-width: 280px;
+            background: #1a1a2e;
+            color: #eee;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .camera-selector select:focus,
+        .camera-selector select:hover {
+            border-color: #7c5cbf;
+        }
+
+        .btn-cam {
+            background: #2d2d4e;
+            color: #ccc;
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 7px 16px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+
+        .btn-cam:hover {
+            background: #7c5cbf;
+            color: #fff;
+            border-color: #7c5cbf;
+        }
+
+        .btn-cam:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .cam-status {
+            font-size: 0.75rem;
+            color: #888;
+            text-align: center;
+            min-height: 18px;
+            margin-bottom: 4px;
+            transition: color 0.3s;
+        }
+
+        .cam-status.ok   { color: #4caf7d; }
+        .cam-status.err  { color: #e05252; }
+        .cam-status.busy { color: #f0a500; }
+    </style>
+</head>
+<body>
+    <!-- Alarm Overlay -->
+    <div id="alarmOverlay" class="alarm-overlay">
+        <div class="alarm-text">🚨 SOS DETECTED 🚨</div>
+        <div style="font-size: 1.2rem; margin-bottom: 20px; color: white;">ผู้ป่วยต้องการความช่วยเหลือ</div>
+        <button class="btn-stop" onclick="stopAlarm()">รับทราบ / ปิดเสียง</button>
+    </div>
+
+    <div class="container">
+        <h1>Patient <span>Assist</span></h1>
+
+        <div class="video-box">
+            <div class="live-indicator"><div class="live-dot"></div> LIVE</div>
+            <img id="videoStream" src="{{ url_for('video_feed') }}" alt="Live Feed">
+        </div>
+
+        <!-- ── Camera Selector ── -->
+        <div class="camera-selector">
+            <label>📷 กล้อง:</label>
+            <select id="cameraSelect" onchange="onCameraChange()">
+                <option value="" disabled>กำลังโหลด...</option>
+            </select>
+            <button id="btnSwitchCam" class="btn-cam" onclick="switchCamera()" disabled>
+                เปลี่ยน
+            </button>
+        </div>
+        <div id="camStatus" class="cam-status"></div>
+        <!-- ────────────────────── -->
+
+        <div class="controls">
+            <button id="btnEye" class="btn-mode active" onclick="changeMode('EYE')">
+                โหมดดวงตา (Blink)
+            </button>
+            <button id="btnHand" class="btn-mode" onclick="changeMode('HAND')">
+                โหมดมือ (Hand)
+            </button>
+        </div>
+
+        <p class="instruction">
+            Eye Mode: กระพริบตาถี่ๆ 3 ครั้ง เพื่อแจ้งเตือน<br>
+            Hand Mode: แบมือแล้วกำมือทันที เพื่อแจ้งเตือน
+        </p>
+    </div>
+
+    <audio id="alarmSound" loop>
+        <source src="{{ url_for('static', filename='alarm.mp3') }}" type="audio/mpeg">
+    </audio>
+
+    <script>
+        /* ══════════════════════════════════════
+           Alarm
+        ══════════════════════════════════════ */
+        let isAlarming = false;
+        const alarmSound   = document.getElementById('alarmSound');
+        const alarmOverlay = document.getElementById('alarmOverlay');
+
+        function changeMode(mode) {
+            fetch('/set_mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode })
+            })
+            .then(r => r.json())
+            .then(() => {
+                document.getElementById('btnEye').classList.toggle('active', mode === 'EYE');
+                document.getElementById('btnHand').classList.toggle('active', mode === 'HAND');
+            });
+        }
+
+        function checkStatus() {
+            fetch('/status')
+            .then(r => r.json())
+            .then(data => { if (data.alarm && !isAlarming) triggerAlarm(); })
+            .catch(e => console.error(e));
+        }
+
+        function triggerAlarm() {
+            isAlarming = true;
+            alarmOverlay.style.display = 'flex';
+            alarmSound.play().catch(e => console.log('Audio play blocked'));
+        }
+
+        function stopAlarm() {
+            isAlarming = false;
+            alarmOverlay.style.display = 'none';
+            alarmSound.pause();
+            alarmSound.currentTime = 0;
+        }
+
+        setInterval(checkStatus, 500);
+
+        /* ══════════════════════════════════════
+           Camera Selector
+        ══════════════════════════════════════ */
+        let currentCameraIndex = 0;
+        const camSelect   = document.getElementById('cameraSelect');
+        const btnSwitch   = document.getElementById('btnSwitchCam');
+        const camStatus   = document.getElementById('camStatus');
+        const videoStream = document.getElementById('videoStream');
+
+        /** โหลด list กล้องจาก backend */
+        async function loadCameras() {
+            setCamStatus('busy', 'กำลังค้นหากล้อง...');
+            try {
+                const res  = await fetch('/api/cameras');
+                const list = await res.json();   // [{index, name}, ...]
+
+                camSelect.innerHTML = '';
+
+                if (!list.length) {
+                    camSelect.innerHTML = '<option value="">ไม่พบกล้อง</option>';
+                    setCamStatus('err', 'ไม่พบกล้องในระบบ');
+                    return;
+                }
+
+                list.forEach(cam => {
+                    const opt = document.createElement('option');
+                    opt.value   = cam.index;
+                    opt.text    = cam.name;
+                    // ถ้าเป็นกล้องปัจจุบัน → mark selected
+                    if (cam.index === currentCameraIndex) opt.selected = true;
+                    camSelect.appendChild(opt);
+                });
+
+                btnSwitch.disabled = false;
+                setCamStatus('ok', `พบ ${list.length} กล้อง`);
+            } catch (e) {
+                camSelect.innerHTML = '<option value="">โหลดไม่สำเร็จ</option>';
+                setCamStatus('err', 'โหลด list กล้องไม่ได้ — ตรวจสอบ backend');
+                console.error(e);
+            }
+        }
+
+        /** เมื่อ user เปลี่ยน dropdown → enable ปุ่มเฉพาะถ้าเลือกต่างจากปัจจุบัน */
+        function onCameraChange() {
+            const selected = parseInt(camSelect.value);
+            btnSwitch.disabled = (selected === currentCameraIndex);
+            if (!btnSwitch.disabled) setCamStatus('', '');
+        }
+
+        /** กด "เปลี่ยน" → บอก backend เปลี่ยน VideoCapture */
+        async function switchCamera() {
+            const index = parseInt(camSelect.value);
+            if (index === currentCameraIndex) return;
+
+            btnSwitch.disabled = true;
+            setCamStatus('busy', 'กำลังเปลี่ยนกล้อง...');
+
+            try {
+                const res  = await fetch('/api/select_camera', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ index })
+                });
+                const data = await res.json();
+
+                if (data.status === 'ok') {
+                    currentCameraIndex = index;
+                    // reload video stream (bust cache)
+                    videoStream.src = '{{ url_for("video_feed") }}?t=' + Date.now();
+                    setCamStatus('ok', `ใช้งานกล้อง ${index} แล้ว`);
+                } else {
+                    setCamStatus('err', data.message || 'เปลี่ยนกล้องไม่สำเร็จ');
+                    btnSwitch.disabled = false;
+                }
+            } catch (e) {
+                setCamStatus('err', 'ติดต่อ backend ไม่ได้');
+                btnSwitch.disabled = false;
+                console.error(e);
+            }
+        }
+
+        function setCamStatus(type, msg) {
+            camStatus.className = 'cam-status' + (type ? ' ' + type : '');
+            camStatus.textContent = msg;
+        }
+
+        // โหลด list ทันทีที่หน้าเปิด
+        loadCameras();
+    </script>
+</body>
+</html>

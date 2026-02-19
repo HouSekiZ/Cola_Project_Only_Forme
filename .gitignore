@@ -1,0 +1,8 @@
+# .gitignore
+Lib/
+Scripts/
+Include/
+share/
+pyvenv.cfg
+__pycache__/
+archive.zip
