@@ -1,0 +1,13 @@
+# ละเว้นโฟลเดอร์ Virtual Environment
+venv/
+.venv/
+env/
+
+# ละเว้นไฟล์โมเดลขนาดใหญ่
+*.task
+
+# อื่นๆ
+__pycache__/
+.DS_Store
+
+*.md

@@ -1,0 +1,75 @@
+/* alarm.css – Alarm overlay styles */
+
+.alarm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(220, 20, 20, 0.92);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: alarm-flash 0.5s ease infinite alternate;
+}
+
+@keyframes alarm-flash {
+    from { background: rgba(220, 20, 20, 0.88); }
+    to   { background: rgba(180, 10, 10, 0.96); }
+}
+
+.alarm-content {
+    text-align: center;
+    color: #fff;
+    padding: 40px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    max-width: 400px;
+    width: 90%;
+}
+
+.alarm-icon {
+    font-size: 4rem;
+    margin-bottom: 12px;
+    animation: shake 0.4s ease infinite;
+}
+
+@keyframes shake {
+    0%, 100% { transform: rotate(-8deg); }
+    50%       { transform: rotate(8deg); }
+}
+
+.alarm-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    margin-bottom: 8px;
+}
+
+.alarm-message {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 24px;
+}
+
+.btn-acknowledge {
+    background: #fff;
+    color: #c0392b;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 14px 36px;
+    border-radius: 30px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.btn-acknowledge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+}
+
+.btn-acknowledge:active {
+    transform: scale(0.97);
+}

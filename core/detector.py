@@ -1,0 +1,311 @@
+"""
+Detector: orchestrates the full detection pipeline
+
+Modes:
+  ALL  — รัน EYE + HAND + BODY พร้อมกัน (โหมดรวม)
+  EYE  — ตรวจกระพิบตาเท่านั้น
+  HAND — ตรวจท่าทางมือเท่านั้น
+  BODY — ตรวจท่านอนเท่านั้น
+"""
+import time
+import cv2
+import numpy as np
+from collections import deque
+from typing import Optional, Dict, Any
+
+import mediapipe as mp
+
+from core.camera_manager import CameraManager
+from core.alarm_manager import AlarmManager, AlarmType
+from core.position_tracker import PositionTracker
+from core.notification_manager import NotificationManager
+from detectors.face_detector import FaceDetector
+from detectors.hand_detector import HandDetector
+from detectors.body_detector import BodyDetector, BodyResult
+from renderers.eye_renderer import EyeRenderer
+from renderers.hand_renderer import HandRenderer
+from utils.logger import setup_logger
+
+logger = setup_logger('detector')
+
+
+class Detector:
+    """Orchestrator สำหรับ detection pipeline"""
+
+    VALID_MODES = ['ALL', 'EYE', 'HAND', 'BODY']
+
+    def __init__(self, camera_manager: CameraManager, alarm_manager: AlarmManager):
+        self.camera_manager = camera_manager
+        self.alarm_manager  = alarm_manager
+
+        # Lazy-load detectors
+        self._face_detector: Optional[FaceDetector] = None
+        self._hand_detector: Optional[HandDetector] = None
+        self._body_detector: Optional[BodyDetector] = None
+
+        # Renderers
+        self.eye_renderer  = EyeRenderer()
+        self.hand_renderer = HandRenderer()
+
+        self.current_mode = "ALL"
+
+        # Position tracking & notifications
+        self._position_tracker     = PositionTracker()
+        self._notification_manager = NotificationManager()
+
+        self._pose_timestamp_ms: int = 0
+
+        # FPS
+        self.frame_times: deque = deque(maxlen=30)
+        self.fps: float = 0.0
+
+        logger.info("Detector initialized (default mode: ALL)")
+
+    # ── Lazy properties ────────────────────────────────────────────────────
+
+    @property
+    def face_detector(self) -> FaceDetector:
+        if self._face_detector is None:
+            logger.info("Lazy-loading FaceDetector...")
+            self._face_detector = FaceDetector()
+        return self._face_detector
+
+    @property
+    def hand_detector(self) -> HandDetector:
+        if self._hand_detector is None:
+            logger.info("Lazy-loading HandDetector...")
+            self._hand_detector = HandDetector()
+        return self._hand_detector
+
+    # ── Mode helpers ───────────────────────────────────────────────────────
+
+    def set_mode(self, mode: str):
+        mode = mode.upper()
+        if mode not in self.VALID_MODES:
+            raise ValueError(f"Invalid mode: {mode}. Valid: {self.VALID_MODES}")
+        if mode != self.current_mode:
+            self.current_mode = mode
+            if self._face_detector:
+                self._face_detector.reset()
+            if self._hand_detector:
+                self._hand_detector.reset()
+            logger.info(f"Mode changed to: {mode}")
+
+    def _use_eye(self)  -> bool: return self.current_mode in ('ALL', 'EYE')
+    def _use_hand(self) -> bool: return self.current_mode in ('ALL', 'HAND')
+    def _use_body(self) -> bool: return self.current_mode in ('ALL', 'BODY')
+
+    # ── Main pipeline ──────────────────────────────────────────────────────
+
+    def process_frame(self) -> Optional[Dict[str, Any]]:
+        start = time.time()
+
+        frame_data = self.camera_manager.get_frame()
+        if frame_data is None:
+            return None
+
+        bgr_frame, _ = frame_data
+        rgb_frame     = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+
+        eye_detection:  Dict[str, Any] = _empty_detection()
+        hand_detection: Dict[str, Any] = _empty_detection()
+        body_result:    Optional[BodyResult] = None
+
+        try:
+            if self._use_eye():
+                eye_detection = self.face_detector.detect(rgb_frame)
+
+            if self._use_hand():
+                hand_detection = self.hand_detector.detect(rgb_frame)
+
+            if self._use_body():
+                body_result = self._run_body_detection(rgb_frame)
+
+        except Exception as e:
+            logger.error(f"Detection error: {e}", exc_info=True)
+
+        # ── Render ─────────────────────────────────────────────────────────
+        try:
+            rendered_frame = self._render(bgr_frame, eye_detection,
+                                          hand_detection, body_result)
+        except Exception as e:
+            logger.error(f"Render error: {e}", exc_info=True)
+            rendered_frame = bgr_frame
+
+        # ── Alarms ─────────────────────────────────────────────────────────
+        if eye_detection.get('alarm'):
+            self.alarm_manager.trigger_alarm(AlarmType.EYE_BLINK)
+        if hand_detection.get('alarm'):
+            self.alarm_manager.trigger_alarm(AlarmType.HAND_GESTURE)
+
+        # ── Position tracking ──────────────────────────────────────────────
+        if body_result is not None:
+            self._position_tracker.update(body_result.position)
+
+        # ── Notification tick ──────────────────────────────────────────────
+        tracker_status    = self._position_tracker.get_status()
+        new_notifications = self._notification_manager.tick(
+            reposition_due=tracker_status.reposition_due
+        )
+        for notif in new_notifications:
+            if notif.type == "reposition":
+                self.alarm_manager.trigger_alarm(
+                    AlarmType.REPOSITION_REMINDER
+                    if hasattr(AlarmType, 'REPOSITION_REMINDER')
+                    else AlarmType.EYE_BLINK
+                )
+
+        # ── Encode ─────────────────────────────────────────────────────────
+        _, buffer = cv2.imencode('.jpg', rendered_frame,
+                                 [cv2.IMWRITE_JPEG_QUALITY, 85])
+        encoded_frame = buffer.tobytes()
+
+        # ── FPS ────────────────────────────────────────────────────────────
+        elapsed = time.time() - start
+        self.frame_times.append(elapsed)
+        if len(self.frame_times) > 1:
+            avg      = sum(self.frame_times) / len(self.frame_times)
+            self.fps = 1.0 / avg if avg > 0 else 0.0
+
+        return {
+            'encoded_frame':  encoded_frame,
+            'mode':           self.current_mode,
+            'fps':            round(self.fps, 1),
+            'detection':      eye_detection if self._use_eye() else hand_detection,
+            'eye_detection':  eye_detection,
+            'hand_detection': hand_detection,
+            'body': {
+                'position':   body_result.position   if body_result else 'UNKNOWN',
+                'confidence': body_result.confidence if body_result else 0.0,
+            },
+            'position_status': self.get_position_status(),
+        }
+
+    # ── Render ─────────────────────────────────────────────────────────────
+
+    def _render(self, bgr_frame: np.ndarray,
+                eye_det: dict, hand_det: dict,
+                body_result: Optional[BodyResult]) -> np.ndarray:
+        """วาด overlay ทุก layer ที่ active"""
+        out = bgr_frame.copy()
+
+        # 1. Eye overlay (ใช้ EyeRenderer เดิม)
+        if self._use_eye() and eye_det.get('detected'):
+            out = self.eye_renderer.render(out, eye_det)
+
+        # 2. Hand skeleton — วาดจุด landmark + เส้นเชื่อม
+        if self._use_hand() and hand_det.get('detected'):
+            data = hand_det.get('data') or {}
+            landmarks = data.get('landmarks')
+            alarm     = hand_det.get('alarm', False)
+            if landmarks is not None:
+                out = HandDetector.draw_landmarks(out, landmarks, alarm=alarm)
+            else:
+                # fallback: ใช้ hand_renderer เดิมถ้าไม่มี landmarks
+                out = self.hand_renderer.render(out, hand_det)
+
+        # 3. Body skeleton — วาดจุด pose + เส้น skeleton (มุมบนขวา)
+        if self._use_body() and body_result is not None:
+            out = self._render_body_overlay(out, body_result)
+
+        return out
+
+    def _render_body_overlay(self, bgr_frame: np.ndarray,
+                              result: BodyResult) -> np.ndarray:
+        """วาด body skeleton + ป้ายท่านอน"""
+        out = bgr_frame.copy()
+        h, w = out.shape[:2]
+
+        # วาด skeleton ถ้ามี landmarks
+        if result.raw_landmarks is not None:
+            out = BodyDetector.draw_landmarks(
+                out, result.raw_landmarks, position=result.position
+            )
+
+        # ── ป้ายท่านอน (มุมบนขวา ไม่ทับ eye overlay) ──────────────────────
+        position_labels = {
+            'SUPINE':     ('Supine (หงาย)',           (100, 200, 100)),
+            'LEFT_SIDE':  ('Left Side (ตะแคงซ้าย)',   (100, 180, 255)),
+            'RIGHT_SIDE': ('Right Side (ตะแคงขวา)',   (255, 180, 100)),
+            'UNKNOWN':    ('Unknown',                  (180, 180, 180)),
+        }
+        label, color = position_labels.get(result.position, ('Unknown', (180, 180, 180)))
+        status  = self._position_tracker.get_status()
+
+        bx1, by1 = w - 300, 8
+        bx2, by2 = w - 8,   72
+
+        cv2.rectangle(out, (bx1, by1), (bx2, by2), (0, 0, 0), -1)
+        cv2.rectangle(out, (bx1, by1), (bx2, by2), color, 2)
+
+        conf_pct = int(result.confidence * 100)
+        cv2.putText(out, f"{label} ({conf_pct}%)",
+                    (bx1 + 8, by1 + 26),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+
+        remaining = int(status.time_until_reposition)
+        hrs, mins = divmod(remaining // 60, 60)
+        if status.reposition_due:
+            time_str, text_color = "REPOSITION NOW!", (0, 0, 255)
+        else:
+            time_str, text_color = f"Flip in: {hrs}h {mins}m", (220, 220, 220)
+
+        cv2.putText(out, time_str,
+                    (bx1 + 8, by1 + 54),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, text_color, 1)
+
+        return out
+
+    # ── Body detection ─────────────────────────────────────────────────────
+
+    def _run_body_detection(self, rgb_frame: np.ndarray) -> Optional[BodyResult]:
+        if self._body_detector is None:
+            self._body_detector = BodyDetector()
+            if not self._body_detector.load():
+                logger.error("BodyDetector failed to load — disabled")
+                self._body_detector = None
+                return None
+
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        self._pose_timestamp_ms += 33
+        return self._body_detector.detect(mp_image, self._pose_timestamp_ms)
+
+    # ── Position & Notification public API ────────────────────────────────
+
+    def get_position_status(self) -> dict:
+        s = self._position_tracker.get_status()
+        return {
+            'current_position':      s.current_position,
+            'current_duration':      s.current_duration,
+            'time_until_reposition': s.time_until_reposition,
+            'reposition_due':        s.reposition_due,
+            'reposition_interval':   s.reposition_interval,
+        }
+
+    def get_position_history(self, limit: int = 50) -> list:
+        return self._position_tracker.get_history(limit)
+
+    def reset_reposition_timer(self):
+        self._position_tracker.reset_reposition_timer()
+        self._notification_manager.acknowledge_reposition()
+
+    def get_meal_status(self) -> list:
+        return self._notification_manager.get_meal_status()
+
+    def mark_meal_eaten(self, meal_name: str) -> bool:
+        return self._notification_manager.mark_meal_eaten(meal_name)
+
+    def set_meal_times(self, meal_times: dict) -> None:
+        self._notification_manager.set_meal_times(meal_times)
+
+    def pop_pending_notifications(self) -> list:
+        return self._notification_manager.pop_pending()
+
+    def get_fps(self) -> float:
+        return round(self.fps, 1)
+
+
+# ── module-level helper ────────────────────────────────────────────────────
+
+def _empty_detection() -> Dict[str, Any]:
+    return {'detected': False, 'alarm': False, 'confidence': 0.0, 'data': None}

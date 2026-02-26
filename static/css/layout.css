@@ -1,0 +1,87 @@
+/* layout.css – Containers and structure */
+
+.container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.app-title {
+    font-size: 1.8rem;
+    letter-spacing: -0.5px;
+}
+
+.app-title .highlight {
+    color: var(--color-primary);
+}
+
+.panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 14px;
+}
+
+.panel-title {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.status-label {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.status-value {
+    font-weight: 600;
+}
+
+.video-box {
+    position: relative;
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 14px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow);
+    aspect-ratio: 4 / 3;
+}
+
+.video-stream {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--color-text-muted);
+}

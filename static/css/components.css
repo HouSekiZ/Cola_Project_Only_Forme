@@ -1,0 +1,181 @@
+/* components.css – Buttons, controls, badges, etc. */
+
+/* ── Buttons ───────────────────────────────────────── */
+button {
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    transition: all 0.2s;
+}
+
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-switch {
+    background: var(--color-primary);
+    color: #fff;
+    padding: 8px 20px;
+}
+
+.btn-switch:hover:not(:disabled) {
+    background: #6fa3ff;
+    transform: translateY(-1px);
+}
+
+/* ── Mode Buttons ──────────────────────────────────── */
+.mode-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-mode {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 10px;
+    background: var(--color-bg);
+    border: 2px solid var(--color-border);
+    color: var(--color-text-muted);
+    border-radius: var(--radius);
+    font-size: 1rem;
+}
+
+.btn-mode.active {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(79, 142, 247, 0.1);
+}
+
+.btn-mode:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+}
+
+/* ── Camera Select ─────────────────────────────────── */
+.camera-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.camera-controls label {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.camera-select {
+    flex: 1;
+    min-width: 120px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: inherit;
+}
+
+/* ── Status Messages ───────────────────────────────── */
+.status-message {
+    font-size: 0.82rem;
+    margin-top: 8px;
+    min-height: 1.2em;
+    transition: color 0.2s;
+}
+
+.status-message.success { color: var(--color-success); }
+.status-message.error   { color: var(--color-danger); }
+.status-message.loading { color: var(--color-text-muted); }
+
+/* ── Live Indicator ────────────────────────────────── */
+.live-indicator {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.08em;
+    z-index: 5;
+}
+
+.live-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--color-danger);
+    border-radius: 50%;
+    animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* ── FPS Badge ─────────────────────────────────────── */
+.fps-badge {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: rgba(0,0,0,0.6);
+    color: var(--color-success);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    z-index: 5;
+    letter-spacing: 0.04em;
+}
+
+/* ── Connection Status ─────────────────────────────── */
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.dot-ok  { background: var(--color-success); }
+.dot-err { background: var(--color-danger); }
+
+/* ── Spinner ───────────────────────────────────────── */
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Instructions ──────────────────────────────────── */
+.instructions-panel p {
+    font-size: 0.88rem;
+    color: var(--color-text-muted);
+    line-height: 1.7;
+}
