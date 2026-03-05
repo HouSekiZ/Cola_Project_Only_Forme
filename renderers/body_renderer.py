@@ -6,6 +6,7 @@ import numpy as np
 from typing import Dict, Any, Optional
 
 from .base import BaseRenderer
+from .thai_text import draw_hud_box
 from detectors.body_detector import BodyDetector, BodyResult
 
 
@@ -59,8 +60,7 @@ class BodyRenderer(BaseRenderer):
             cv2.addWeighted(overlay, 0.25, output, 0.75, 0, output)
 
         if not detection.get("detected"):
-            cv2.putText(output, "No body detected", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, _C_GRAY, 2, cv2.LINE_AA)
+            _draw_hud_box(output, [("ไม่พบร่างกาย", _C_GRAY)], top=4)
             return output
 
         data = detection.get("data", {})
@@ -76,30 +76,27 @@ class BodyRenderer(BaseRenderer):
             BodyDetector.draw_landmarks(output, raw_lms, position)
 
         # ── HUD text ──
-        info = _POSITION_INFO.get(position, _POSITION_INFO["UNKNOWN"])
+        info      = _POSITION_INFO.get(position, _POSITION_INFO["UNKNOWN"])
         pos_color = info["color"]
         label_th  = info["label_th"]
 
         lines = []
         if alarm:
-            lines.append(("!! พลิกตัวผู้ป่วยด่วน !!", _C_ALARM))
+            lines.append(("🚨  พลิกตัวผู้ป่วยด่วน!", _C_ALARM))
 
         lines += [
-            (f"ท่า: {label_th}", pos_color),
-            (f"ความมั่นใจ: {confidence:.0%}", _C_WHITE),
-            (f"อยู่นาน: {_fmt_duration(duration)}", _C_WHITE),
+            (f"ท่านอน       : {label_th}",                   pos_color),
+            (f"ความมั่นใจ  : {confidence:.0%}",               _C_WHITE),
+            (f"อยู่ท่านี้นาน: {_fmt_duration(duration)}",      _C_WHITE),
         ]
 
         if due:
-            lines.append(("ถึงเวลาพลิกตัวแล้ว!", _C_ORANGE))
+            lines.append(("⚠️  ถึงเวลาพลิกตัวแล้ว!", _C_ORANGE))
         else:
-            lines.append((f"พลิกตัวใน: {_fmt_duration(remaining)}", _C_YELLOW))
+            lines.append((f"พลิกตัวอีก  : {_fmt_duration(remaining)}", _C_YELLOW))
 
-        y = 30
-        for text, color in lines:
-            cv2.putText(output, text, (10, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2, cv2.LINE_AA)
-            y += 30
+        border_color = _C_ALARM if alarm else (0, 180, 180)
+        _draw_hud_box(output, lines, top=4, border_color=border_color)
 
         # ── progress bar เวลาก่อนพลิกตัว ──
         self._draw_progress_bar(output, remaining, due)
@@ -149,3 +146,6 @@ def _fmt_duration(seconds: float) -> str:
     if h > 0:
         return f"{h} ชม. {m} นาที"
     return f"{m} นาที"
+
+
+

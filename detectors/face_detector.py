@@ -39,9 +39,12 @@ class FaceDetector(BaseDetector):
         # EAR smoothing buffer
         self._ear_buf: deque = deque(maxlen=_EAR_SMOOTH_N)
 
-    def detect(self, frame: np.ndarray) -> dict:
+    def detect(self, frame: np.ndarray, original_shape: tuple = None) -> dict:
         """ตรวจจับ face + blink จาก frame"""
-        h, w = frame.shape[:2]
+        if original_shape:
+            h, w = original_shape[:2]
+        else:
+            h, w = frame.shape[:2]
         now = time.time()
 
         # Convert to MediaPipe Image

@@ -61,6 +61,9 @@ class PatientAssistApp {
                 };
                 DOM.setStatus(this.modeStatusEl, 'success',
                     `เปลี่ยนเป็น ${labels[mode] || mode} แล้ว`);
+
+                // Fetch and sync new mode's overlay states
+                this.fetchOverlayState();
             }
         } catch (error) {
             console.error('Set mode failed:', error);
@@ -116,6 +119,15 @@ class PatientAssistApp {
             const names = { ALL: 'ALL MODE', EYE: 'EYE MODE', HAND: 'HAND MODE', BODY: 'BODY MODE' };
             videoTag.textContent = names[this.currentMode] || this.currentMode;
         }
+
+        // ── Overlay Toggles ──
+        const toggleEye = document.getElementById('toggleOverlayEye');
+        const toggleHand = document.getElementById('toggleOverlayHand');
+        const toggleBody = document.getElementById('toggleOverlayBody');
+
+        if (toggleEye) toggleEye.style.display = (this.currentMode === 'ALL' || this.currentMode === 'EYE') ? '' : 'none';
+        if (toggleHand) toggleHand.style.display = (this.currentMode === 'ALL' || this.currentMode === 'HAND') ? '' : 'none';
+        if (toggleBody) toggleBody.style.display = (this.currentMode === 'ALL' || this.currentMode === 'BODY') ? '' : 'none';
     }
 
     // ── Reposition ────────────────────────────────────────

@@ -26,6 +26,7 @@ from detectors.body_detector import BodyDetector, BodyResult
 from renderers.eye_renderer import EyeRenderer
 from renderers.hand_renderer import HandRenderer
 from renderers.body_renderer import BodyRenderer
+from renderers.thai_text import draw_hud_box
 from utils.logger import setup_logger
 
 logger = setup_logger('detector')
@@ -159,23 +160,29 @@ class Detector:
 
     # ── Overlay toggle ──────────────────────────────────────────────────────
 
-    # สถานะเริ่มต้น: แสดงทุก overlay
-    _overlay: Dict[str, bool] = {'eye': True, 'hand': True, 'body': True}
+    # สถานะเริ่มต้น: แยก overlay ตามโหมด
+    _overlay_states: Dict[str, Dict[str, bool]] = {
+        'ALL': {'eye': True, 'hand': True, 'body': True},
+        'EYE': {'eye': True, 'hand': False, 'body': False},
+        'HAND': {'eye': False, 'hand': True, 'body': False},
+        'BODY': {'eye': False, 'hand': False, 'body': True},
+    }
 
     def toggle_overlay(self, name: str) -> bool:
         """สลับ on/off ของ overlay ตามชื่อ (eye/hand/body)
         Returns: สถานะใหม่ (True = แสดง)
         """
         name = name.lower()
-        if name not in self._overlay:
-            raise ValueError(f"Invalid overlay name: {name}")
-        self._overlay[name] = not self._overlay[name]
-        logger.info(f"Overlay '{name}' = {self._overlay[name]}")
-        return self._overlay[name]
+        current_state = self._overlay_states[self.current_mode]
+        if name not in current_state:
+            raise ValueError(f"Invalid overlay name: {name} in mode {self.current_mode}")
+        current_state[name] = not current_state[name]
+        logger.info(f"Overlay '{name}' in mode '{self.current_mode}' = {current_state[name]}")
+        return current_state[name]
 
     def get_overlay_state(self) -> Dict[str, bool]:
-        """คืนสถานะ overlay ทั้งหมด"""
-        return dict(self._overlay)
+        """คืนสถานะ overlay ทั้งหมดของโหมดปัจจุบัน"""
+        return dict(self._overlay_states[self.current_mode])
 
 
     def process_frame(self) -> Optional[Dict[str, Any]]:
@@ -208,19 +215,19 @@ class Detector:
                 if self._eye_frame_count >= self._EYE_SKIP:
                     self._eye_frame_count = 0
                     futures['eye'] = self._pool.submit(
-                        self.face_detector.detect, det_frame)
+                        self.face_detector.detect, det_frame, rgb_frame.shape[:2])
 
                 self._hand_frame_count += 1
                 if self._hand_frame_count >= self._HAND_SKIP:
                     self._hand_frame_count = 0
                     futures['hand'] = self._pool.submit(
-                        self._run_hand_detection, det_frame)
+                        self._run_hand_detection, det_frame, True)
 
                 self._body_frame_count += 1
                 if self._body_frame_count >= self._BODY_SKIP:
                     self._body_frame_count = 0
                     futures['body'] = self._pool.submit(
-                        self._run_body_detection, det_frame)
+                        self._run_body_detection, det_frame, True)
 
                 # รอ futures ที่ submit, ใช้ cache สำหรับ frame ที่ skip
                 if 'eye' in futures:
@@ -317,30 +324,32 @@ class Detector:
         """วาด overlay ทุก layer ที่ active"""
         out = bgr_frame.copy()
 
-        # 1. Eye overlay (ใช้ EyeRenderer เดิม)
-        if self._use_eye() and self._overlay.get('eye', True) and eye_det.get('detected'):
-            out = self.eye_renderer.render(out, eye_det)
+        current_overlay = self._overlay_states[self.current_mode]
+        is_all_mode = self.current_mode == 'ALL'
+
+        # 1. Eye overlay
+        if self._use_eye() and current_overlay.get('eye', False):
+            out = self.eye_renderer.render(out, eye_det, is_all_mode=is_all_mode)
 
         # 2. Hand skeleton — วาดจุด landmark + เส้นเชื่อม
-        if self._use_hand() and self._overlay.get('hand', True) and hand_det.get('detected'):
+        if self._use_hand() and current_overlay.get('hand', False) and hand_det.get('detected'):
             data = hand_det.get('data') or {}
             landmarks = data.get('landmarks')
             alarm     = hand_det.get('alarm', False)
             if landmarks is not None:
                 out = HandDetector.draw_landmarks(out, landmarks, alarm=alarm)
-            else:
-                # fallback: ใช้ hand_renderer เดิมถ้าไม่มี landmarks
-                out = self.hand_renderer.render(out, hand_det)
+            # วาด HUD text box สำหรับมือ (ใช้ hand_renderer)
+            out = self.hand_renderer.render(out, hand_det, is_all_mode=is_all_mode)
 
-        # 3. Body skeleton — วาดจุด pose + เส้น skeleton (มุมบนขวา)
-        if self._use_body() and body_result is not None:
+        # 3. Body skeleton + HUD (มุมบนขวา)
+        if self._use_body() and body_result is not None and current_overlay.get('body', False):
             out = self._render_body_overlay(out, body_result)
 
         return out
 
     def _render_body_overlay(self, bgr_frame: np.ndarray,
                               result: BodyResult) -> np.ndarray:
-        """วาด body skeleton + ป้ายท่านอน"""
+        """วาด body skeleton + ป้ายท่านอน (มุมบนขวา)"""
         out = bgr_frame.copy()
         h, w = out.shape[:2]
 
@@ -350,54 +359,69 @@ class Detector:
                 out, result.raw_landmarks, position=result.position
             )
 
-        # ── ป้ายท่านอน (มุมบนขวา ไม่ทับ eye overlay) ──────────────────────
-        position_labels = {
-            'SUPINE':     ('Supine (หงาย)',           (100, 200, 100)),
-            'LEFT_SIDE':  ('Left Side (ตะแคงซ้าย)',   (100, 180, 255)),
-            'RIGHT_SIDE': ('Right Side (ตะแคงขวา)',   (255, 180, 100)),
-            'UNKNOWN':    ('Unknown',                  (180, 180, 180)),
+        # ── ป้าย + เวลาพลิกตัว (มุมบนขวา ไม่ทับ eye/hand HUD ซ้ายบน) ──
+        _POS_LABEL = {
+            'SUPINE':     ('หงาย',       (100, 200, 100)),
+            'LEFT_SIDE':  ('ตะแคงซ้าย', (100, 180, 255)),
+            'RIGHT_SIDE': ('ตะแคงขวา',  (255, 180, 100)),
+            'UNKNOWN':    ('ไม่ทราบ',    (180, 180, 180)),
         }
-        label, color = position_labels.get(result.position, ('Unknown', (180, 180, 180)))
-        status  = self._position_tracker.get_status()
-
-        bx1, by1 = w - 300, 8
-        bx2, by2 = w - 8,   72
-
-        cv2.rectangle(out, (bx1, by1), (bx2, by2), (0, 0, 0), -1)
-        cv2.rectangle(out, (bx1, by1), (bx2, by2), color, 2)
-
+        label_th, color = _POS_LABEL.get(result.position, ('ไม่ทราบ', (180, 180, 180)))
         conf_pct = int(result.confidence * 100)
-        cv2.putText(out, f"{label} ({conf_pct}%)",
-                    (bx1 + 8, by1 + 26),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
+        status    = self._position_tracker.get_status()
         remaining = int(status.time_until_reposition)
         hrs, mins = divmod(remaining // 60, 60)
-        if status.reposition_due:
-            time_str, text_color = "REPOSITION NOW!", (0, 0, 255)
-        else:
-            time_str, text_color = f"Flip in: {hrs}h {mins}m", (220, 220, 220)
 
-        cv2.putText(out, time_str,
-                    (bx1 + 8, by1 + 54),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, text_color, 1)
+        if status.reposition_due:
+            flip_text  = 'ถึงเวลาพลิกตัวแล้ว!'
+            flip_color = (0, 0, 220)
+        else:
+            flip_text  = f'พลิกตัวใน: {hrs} ชม. {mins} นาที'
+            flip_color = (0, 220, 220)
+
+        border_color = (0, 0, 220) if status.reposition_due else color
+        box_w  = 300
+        box_x  = w - box_w - 8
+
+        lines = [
+            (f'ท่านอน : {label_th} ({conf_pct}%)', color),
+            (flip_text, flip_color),
+        ]
+
+        # วาดกล่อง HUD มุมขวาบน
+        line_h = 32
+        pad_y  = 10
+        box_h  = pad_y * 2 + line_h * len(lines)
+        import cv2 as _cv2
+        overlay = out.copy()
+        _cv2.rectangle(overlay, (box_x, 4), (box_x + box_w, 4 + box_h), (20, 20, 20), -1)
+        _cv2.addWeighted(overlay, 0.65, out, 0.35, 0, out)
+        _cv2.rectangle(out, (box_x, 4), (box_x + box_w, 4 + box_h), border_color, 1)
+
+        from renderers.thai_text import put_thai
+        y = 4 + pad_y + line_h - 4
+        for text, c in lines:
+            put_thai(out, text, (box_x + 10, y), font_size=20, color=c)
+            y += line_h
 
         return out
 
     # ── Hand detection (with frame-skip) ───────────────────────────────────
 
-    def _run_hand_detection(self, rgb_frame: np.ndarray) -> Dict[str, Any]:
+    def _run_hand_detection(self, rgb_frame: np.ndarray, force: bool = False) -> Dict[str, Any]:
         """รัน hand detection พร้อม frame-skip ทุก _HAND_SKIP frames"""
-        self._hand_frame_count += 1
-        if self._hand_frame_count % self._HAND_SKIP != 0:
-            return self._last_hand_det  # reuse ผลล่าสุด
+        if not force:
+            self._hand_frame_count += 1
+            if self._hand_frame_count % self._HAND_SKIP != 0:
+                return self._last_hand_det  # reuse ผลล่าสุด
         result = self.hand_detector.detect(rgb_frame)
         self._last_hand_det = result
         return result
 
     # ── Body detection ─────────────────────────────────────────────────────
 
-    def _run_body_detection(self, rgb_frame: np.ndarray) -> Optional[BodyResult]:
+    def _run_body_detection(self, rgb_frame: np.ndarray, force: bool = False) -> Optional[BodyResult]:
         # ── Lazy-load body detector ──────────────────────────────────────────
         if self._body_detector is None:
             self._body_detector = BodyDetector()
@@ -407,9 +431,10 @@ class Detector:
                 return None
 
         # ── Frame-skip: รัน MediaPipe ทุก _BODY_SKIP frames ──────────────────
-        self._body_frame_count += 1
-        if self._body_frame_count % self._BODY_SKIP != 0:
-            return self._last_body_result
+        if not force:
+            self._body_frame_count += 1
+            if self._body_frame_count % self._BODY_SKIP != 0:
+                return self._last_body_result
 
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
         self._pose_timestamp_ms += self._BODY_SKIP * 33
