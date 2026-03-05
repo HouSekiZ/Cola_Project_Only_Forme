@@ -33,3 +33,4 @@ brain/
 
 # Documents (optional)
 *.md
+!README.md
