@@ -4,6 +4,7 @@ FaceDetector: eye blink detection using MediaPipe Face Landmarker
 import time
 import numpy as np
 import mediapipe as mp
+from collections import deque
 
 from .base import BaseDetector
 from core.state_machine import BlinkStateMachine
@@ -13,6 +14,9 @@ from utils.logger import setup_logger
 from config import LEFT_EYE, RIGHT_EYE, FACE_CONSTANTS, ZOOM_CONSTANTS
 
 logger = setup_logger('face_detector')
+
+# EAR smoothing — moving average window
+_EAR_SMOOTH_N = 5
 
 
 class FaceDetector(BaseDetector):
@@ -32,6 +36,9 @@ class FaceDetector(BaseDetector):
         self.blink_mode = "FAR"
         self.zoom_start: float = 0.0
 
+        # EAR smoothing buffer
+        self._ear_buf: deque = deque(maxlen=_EAR_SMOOTH_N)
+
     def detect(self, frame: np.ndarray) -> dict:
         """ตรวจจับ face + blink จาก frame"""
         h, w = frame.shape[:2]
@@ -47,14 +54,19 @@ class FaceDetector(BaseDetector):
             return self._no_detection()
 
         if not result.face_landmarks:
+            self._ear_buf.clear()   # reset buffer เมื่อไม่เห็นหน้า
             return self._no_detection()
 
         face_lm = result.face_landmarks[0]
 
-        # Calculate metrics
-        ear_left, pts_left = calculate_ear(face_lm, LEFT_EYE, w, h)
+        # Calculate raw EAR
+        ear_left, pts_left   = calculate_ear(face_lm, LEFT_EYE, w, h)
         ear_right, pts_right = calculate_ear(face_lm, RIGHT_EYE, w, h)
-        avg_ear = (ear_left + ear_right) / 2.0
+        raw_ear = (ear_left + ear_right) / 2.0
+
+        # ── EAR Smoothing (moving average) ────────────────────────────────
+        self._ear_buf.append(raw_ear)
+        smoothed_ear = sum(self._ear_buf) / len(self._ear_buf)
 
         yaw, pitch, gaze_ok = estimate_gaze(face_lm, w, h)
         ratio = face_distance_ratio(face_lm, w, h)
@@ -65,7 +77,8 @@ class FaceDetector(BaseDetector):
         # Only process blink if gaze is towards camera
         events = {}
         if gaze_ok:
-            events = self.state_machine.update(avg_ear, now, self.blink_mode)
+            # ส่ง smoothed EAR เข้า state machine แทนค่าดิบ
+            events = self.state_machine.update(smoothed_ear, now, self.blink_mode)
 
         alarm = events.get('alarm', False) or events.get('sos_done', False)
 
@@ -74,7 +87,8 @@ class FaceDetector(BaseDetector):
             'confidence': 1.0,
             'alarm': alarm,
             'data': {
-                'ear': avg_ear,
+                'ear': smoothed_ear,        # แสดงค่า smooth ใน HUD
+                'ear_raw': raw_ear,         # เก็บค่าดิบไว้ด้วยถ้าต้องการ debug
                 'ear_left': ear_left,
                 'ear_right': ear_right,
                 'eye_pts_left': pts_left,
@@ -118,3 +132,4 @@ class FaceDetector(BaseDetector):
         self.state_machine.reset()
         self.blink_mode = "FAR"
         self.zoom_start = 0.0
+        self._ear_buf.clear()

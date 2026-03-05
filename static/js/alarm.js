@@ -8,9 +8,11 @@ class AlarmManager {
         this.alarmMessage = document.getElementById('alarmMessage');
         this.btnAcknowledge = document.getElementById('btnAcknowledge');
 
-        this.pollInterval = 500;   // ms
+        this.pollInterval = 1000;   // ms (ลดจาก 500ms → 1000ms)
         this.failCount = 0;
         this.maxFails = 5;
+        this._backoffMs = 1000;     // exponential backoff start
+        this._maxBackoffMs = 8000;  // backoff cap
 
         this.btnAcknowledge.addEventListener('click', () => this.acknowledge());
         this.startPolling();
@@ -21,6 +23,8 @@ class AlarmManager {
             try {
                 const data = await API.get('/api/status');
                 this.failCount = 0;
+                this._backoffMs = this.pollInterval; // reset backoff เมื่อ success
+                this._setConnectionLost(false);
 
                 if (data.alarm && !this.isAlarming) {
                     this.trigger(data.alarm_type);
@@ -30,8 +34,10 @@ class AlarmManager {
                 if (this.failCount >= this.maxFails) {
                     this._setConnectionLost(true);
                 }
+                // exponential backoff: 1s → 2s → 4s → 8s
+                this._backoffMs = Math.min(this._backoffMs * 2, this._maxBackoffMs);
             }
-            setTimeout(poll, this.pollInterval);
+            setTimeout(poll, this.failCount > 0 ? this._backoffMs : this.pollInterval);
         };
         setTimeout(poll, this.pollInterval);
     }

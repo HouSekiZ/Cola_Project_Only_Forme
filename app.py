@@ -14,6 +14,14 @@ from core.detector import Detector
 from config import Config, DevelopmentConfig, ProductionConfig, TestingConfig
 from utils.logger import setup_logger
 
+# ── Database (optional — graceful fallback) ──
+_db_available = False
+try:
+    from database import init_db, is_db_available, get_db, repo
+    DB_ENABLED = True
+except ImportError:
+    DB_ENABLED = False
+
 # ── App Setup ──────────────────────────────────────────────
 app = Flask(__name__)
 
@@ -39,6 +47,27 @@ alarm_manager = AlarmManager()
 detector = Detector(camera_manager, alarm_manager)
 
 VALID_MODES = ['ALL', 'EYE', 'HAND', 'BODY']
+
+# ── DB Init (non-blocking, warn ถ้าไม่มี MySQL) ──
+if DB_ENABLED and app.config.get('DB_ENABLED', True):
+    _db_available = init_db()
+    if _db_available:
+        logger.info("MySQL database connected and tables ready.")
+
+        # ── Register alarm DB hook ──────────────────────────────
+        def _alarm_db_hook(alarm_type: str, metadata: dict):
+            """บันทึก alarm event ลง DB ทุกครั้งที่ trigger"""
+            try:
+                with get_db() as db:
+                    repo.save_alarm(db, alarm_type=alarm_type, metadata=metadata)
+            except Exception as exc:
+                logger.warning(f"DB save_alarm failed: {exc}")
+
+        alarm_manager.on_alarm_triggered = _alarm_db_hook
+        # ───────────────────────────────────────────────────────
+
+    else:
+        logger.warning("MySQL not available — running without database persistence.")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -87,7 +116,17 @@ def get_status():
 
 @app.route('/api/acknowledge', methods=['POST'])
 def acknowledge_alarm():
+    active = alarm_manager.get_active_alarm()
     success = alarm_manager.acknowledge_alarm()
+
+    # ── DB: บันทึก acknowledged_at ──
+    if success and active and _db_available:
+        try:
+            with get_db() as db:
+                repo.acknowledge_alarm_db(db, active.type.value)
+        except Exception as e:
+            logger.warning(f"DB acknowledge_alarm failed: {e}")
+
     return jsonify({'success': success})
 
 
@@ -149,6 +188,82 @@ def set_mode():
         return jsonify({'error': str(e)}), 500
 
 
+# ── Overlay Toggle API ─────────────────────────────────────
+
+@app.route('/api/overlay/state')
+def get_overlay_state():
+    """คืนสถานะ overlay ทุกตัว"""
+    return jsonify(detector.get_overlay_state())
+
+
+@app.route('/api/overlay/<string:name>', methods=['POST'])
+def toggle_overlay(name: str):
+    """toggle overlay eye/hand/body"""
+    try:
+        new_state = detector.toggle_overlay(name)
+        return jsonify({'overlay': name, 'visible': new_state})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+# ── Export API ─────────────────────────────────────────────
+
+import csv
+import io
+from flask import make_response
+
+@app.route('/api/export/alarms.csv')
+def export_alarms_csv():
+    """Export alarm events เป็น CSV"""
+    try:
+        rows = []
+        if _db_available:
+            with get_db() as db:
+                rows = repo.get_alarm_history(db, limit=1000)
+        else:
+            rows = [{
+                'id': i+1,
+                'alarm_type': a.type.value,
+                'triggered_at': a.timestamp,
+                'acknowledged': False,
+            } for i, a in enumerate(alarm_manager.get_history())]
+
+        si = io.StringIO()
+        writer = csv.DictWriter(si, fieldnames=['id','alarm_type','triggered_at','acknowledged','acknowledged_at'],
+                                extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(rows)
+        output = make_response(si.getvalue())
+        output.headers['Content-Disposition'] = 'attachment; filename=alarm_events.csv'
+        output.headers['Content-type'] = 'text/csv; charset=utf-8'
+        return output
+    except Exception as e:
+        logger.error(f"export_alarms_csv error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/export/meals.csv')
+def export_meals_csv():
+    """Export meal records เป็น CSV"""
+    try:
+        rows = []
+        if _db_available:
+            with get_db() as db:
+                rows = repo.get_meal_history(db, days=30)
+        si = io.StringIO()
+        writer = csv.DictWriter(si, fieldnames=['id','record_date','meal','scheduled_time','eaten','eaten_at'],
+                                extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(rows)
+        output = make_response(si.getvalue())
+        output.headers['Content-Disposition'] = 'attachment; filename=meal_records.csv'
+        output.headers['Content-type'] = 'text/csv; charset=utf-8'
+        return output
+    except Exception as e:
+        logger.error(f"export_meals_csv error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ── Body Position API ──────────────────────────────────────
 
 @app.route('/api/body_position')
@@ -200,6 +315,14 @@ def set_meal_times():
         return jsonify({'error': 'No valid meal times provided'}), 400
     try:
         detector.set_meal_times(meal_times)
+        # ── DB: upsert meal records สำหรับวันนี้ ──
+        if _db_available:
+            try:
+                with get_db() as db:
+                    for name, t in meal_times.items():
+                        repo.upsert_meal(db, meal_name=name, scheduled_time=t)
+            except Exception as e:
+                logger.warning(f"DB set_meal_times failed: {e}")
         return jsonify({'ok': True, 'meal_times': meal_times})
     except Exception as e:
         logger.error(f"set_meal_times error: {e}")
@@ -212,6 +335,13 @@ def mark_meal_eaten(meal_name: str):
         return jsonify({'error': f'Invalid meal name'}), 400
     try:
         success = detector.mark_meal_eaten(meal_name)
+        # ── DB: บันทึกว่าทานแล้ว ──
+        if success and _db_available:
+            try:
+                with get_db() as db:
+                    repo.mark_meal_eaten_db(db, meal_name)
+            except Exception as e:
+                logger.warning(f"DB mark_meal_eaten failed: {e}")
         if success:
             return jsonify({'ok': True, 'meal': meal_name})
         return jsonify({'error': 'Meal not found'}), 404
@@ -226,10 +356,98 @@ def mark_meal_eaten(meal_name: str):
 def get_pending_notifications():
     try:
         notifications = detector.pop_pending_notifications()
-        return jsonify([n.to_dict() if hasattr(n, 'to_dict') else n
-                        for n in notifications])
+        result = [n.to_dict() if hasattr(n, 'to_dict') else n for n in notifications]
+        # ── DB: บันทึก notifications ใน background ──
+        if _db_available and notifications:
+            try:
+                with get_db() as db:
+                    for n in notifications:
+                        d = n.to_dict() if hasattr(n, 'to_dict') else n
+                        repo.save_notification(
+                            db,
+                            notif_type=d.get('type', 'unknown'),
+                            title=d.get('title', ''),
+                            message=d.get('message', ''),
+                        )
+            except Exception as e:
+                logger.warning(f"DB save_notification failed: {e}")
+        return jsonify(result)
     except Exception as e:
         logger.error(f"get_pending_notifications error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ── Database API ──────────────────────────────────────────────────────
+
+@app.route('/api/db/status')
+def db_status():
+    return jsonify({
+        'enabled':   DB_ENABLED,
+        'available': _db_available if DB_ENABLED else False,
+    })
+
+
+@app.route('/api/db/alarm_history')
+def db_alarm_history():
+    if not _db_available:
+        return jsonify({'error': 'Database not available'}), 503
+    limit = request.args.get('limit', 50, type=int)
+    try:
+        with get_db() as db:
+            return jsonify(repo.get_alarm_history(db, limit=limit))
+    except Exception as e:
+        logger.error(f"db_alarm_history error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/position_history')
+def db_position_history():
+    if not _db_available:
+        return jsonify({'error': 'Database not available'}), 503
+    limit = request.args.get('limit', 50, type=int)
+    try:
+        with get_db() as db:
+            return jsonify(repo.get_position_history(db, limit=limit))
+    except Exception as e:
+        logger.error(f"db_position_history error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/position_stats')
+def db_position_stats():
+    if not _db_available:
+        return jsonify({'error': 'Database not available'}), 503
+    try:
+        with get_db() as db:
+            return jsonify(repo.get_position_stats_today(db))
+    except Exception as e:
+        logger.error(f"db_position_stats error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/meal_history')
+def db_meal_history():
+    if not _db_available:
+        return jsonify({'error': 'Database not available'}), 503
+    days = request.args.get('days', 7, type=int)
+    try:
+        with get_db() as db:
+            return jsonify(repo.get_meal_history(db, days=days))
+    except Exception as e:
+        logger.error(f"db_meal_history error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/db/notification_history')
+def db_notification_history():
+    if not _db_available:
+        return jsonify({'error': 'Database not available'}), 503
+    limit = request.args.get('limit', 30, type=int)
+    try:
+        with get_db() as db:
+            return jsonify(repo.get_notification_history(db, limit=limit))
+    except Exception as e:
+        logger.error(f"db_notification_history error: {e}")
         return jsonify({'error': str(e)}), 500
 
 

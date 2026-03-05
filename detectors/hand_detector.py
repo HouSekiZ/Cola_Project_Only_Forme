@@ -43,12 +43,17 @@ _C_ALARM     = (0, 0, 255)      # แดง — เมื่อ alarm
 class HandDetector(BaseDetector):
     """ตรวจจับมือ + ท่าทาง"""
 
+    # จำนวน frames ที่ต้องเห็น state เดิมก่อนยืนยัน
+    _DEBOUNCE_FRAMES = 3
+
     def __init__(self, config=None):
         super().__init__(config)
         logger.info("Loading hand landmarker model...")
         self.landmarker = load_hand_landmarker()
         logger.info("Hand landmarker loaded.")
-        self.last_hand_state: str = None
+        self.last_hand_state: str = None      # confirmed state
+        self._pending_state: str = None       # candidate state
+        self._pending_count: int = 0          # consecutive frames seen
 
     # ── Detection ──────────────────────────────────────────────────────────
 
@@ -63,28 +68,44 @@ class HandDetector(BaseDetector):
             return self._no_detection()
 
         if not result.hand_landmarks:
+            # reset pending เมื่อไม่เห็นมือ
+            self._pending_state = None
+            self._pending_count = 0
             return self._no_detection()
 
         landmarks  = result.hand_landmarks[0]
-        state      = check_hand_state(landmarks)
-        alarm      = (self.last_hand_state == "OPEN" and state == "FIST")
+        raw_state  = check_hand_state(landmarks)
         handedness = (result.handedness[0][0].display_name
                       if result.handedness else 'Unknown')
 
-        if alarm:
-            logger.info("HAND gesture OPEN→FIST detected! ALARM triggered.")
+        # ── Debounce: ยืนยัน state เมื่อเห็นเดิม _DEBOUNCE_FRAMES frames ──
+        if raw_state == self._pending_state:
+            self._pending_count += 1
+        else:
+            self._pending_state = raw_state
+            self._pending_count = 1
 
-        self.last_hand_state = state
+        confirmed = self._pending_count >= self._DEBOUNCE_FRAMES
+        alarm = False
+
+        if confirmed:
+            # ตรวจ OPEN → FIST เฉพาะเมื่อ confirm แล้ว
+            if self.last_hand_state == "OPEN" and raw_state == "FIST":
+                alarm = True
+                logger.info("HAND gesture OPEN→FIST confirmed! ALARM triggered.")
+            self.last_hand_state = raw_state
 
         return {
             'detected':   True,
             'confidence': 1.0,
             'alarm':      alarm,
             'data': {
-                'state':      state,
+                'state':      self.last_hand_state or raw_state,
+                'pending':    raw_state,         # debug: state ที่กำลัง pending
+                'confirmed':  confirmed,
                 'last_state': self.last_hand_state,
                 'handedness': handedness,
-                'landmarks':  landmarks,   # ← ส่ง raw landmarks ไปให้ renderer
+                'landmarks':  landmarks,
             }
         }
 
@@ -148,4 +169,6 @@ class HandDetector(BaseDetector):
         }
 
     def reset(self):
-        self.last_hand_state = None
+        self.last_hand_state  = None
+        self._pending_state   = None
+        self._pending_count   = 0

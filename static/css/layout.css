@@ -1,70 +1,242 @@
-/* layout.css – Containers and structure */
+/* layout.css — App shell, sidebar, main grid */
 
-.container {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 20px 16px 40px;
+/* ── App Shell (sidebar + main) ─────────────────── */
+.app-shell {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+    gap: 0;
 }
 
-.app-header {
+/* ── Sidebar ─────────────────────────────────────── */
+.sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+.sidebar-brand {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--color-border);
+    gap: 12px;
+    padding: 8px 4px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
 }
 
-.app-title {
+.brand-icon {
     font-size: 1.8rem;
-    letter-spacing: -0.5px;
 }
 
-.app-title .highlight {
-    color: var(--color-primary);
+.brand-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text);
 }
 
-.panel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 16px 20px;
-    margin-bottom: 14px;
+.brand-accent {
+    color: var(--primary);
 }
 
-.panel-title {
-    font-size: 0.9rem;
-    text-transform: uppercase;
+.brand-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
     letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    margin-bottom: 12px;
+    text-transform: uppercase;
 }
 
-.status-row {
+/* Sidebar cards */
+.sidebar-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+}
+
+.sidebar-card-title {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+/* System status */
+.sys-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.sys-info-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 0;
+    padding: 3px 0;
 }
 
-.status-label {
-    color: var(--color-text-muted);
-    font-size: 0.9rem;
+.sys-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
 }
 
-.status-value {
+.sys-value {
+    font-size: 0.8rem;
     font-weight: 600;
 }
 
-.video-box {
+.conn-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.76rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: var(--success-dim);
+    color: var(--success);
+}
+
+.fps-chip {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--primary-dim);
+    color: var(--primary);
+    letter-spacing: 0.04em;
+}
+
+.mode-badge {
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--primary-dim);
+    color: var(--primary);
+    font-size: 0.76rem;
+}
+
+/* Mode grid 2x2 */
+.mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+/* Camera row */
+.camera-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Instructions */
+.instr-card {
+    flex: 1;
+}
+
+.instr-text {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+}
+
+.instr-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.instr-badge {
+    font-size: 1rem;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* ── Main Content ─────────────────────────────────── */
+.main-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+/* ── Video Card ───────────────────────────────────── */
+.video-card {
     position: relative;
     background: #000;
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    margin-bottom: 14px;
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow);
-    aspect-ratio: 4 / 3;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow), var(--glow-blue);
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+}
+
+.video-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+    z-index: 5;
+}
+
+.live-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(231, 76, 60, 0.85);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.1em;
+}
+
+.live-dot {
+    width: 7px;
+    height: 7px;
+    background: #fff;
+    border-radius: 50%;
+    animation: blink 1.2s infinite;
+}
+
+.video-mode-tag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(79, 142, 247, 0.3);
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+}
+
+.fps-chip-video {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--success);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 8px;
+    border-radius: 10px;
 }
 
 .video-stream {
@@ -77,11 +249,132 @@
 .loading-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0, 0, 0, 0.8);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    color: var(--color-text-muted);
+    color: var(--text-muted);
+}
+
+/* ── Bottom Grid: Body + Meal ──────────────────────── */
+.bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ── Generic Card ─────────────────────────────────── */
+.card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.card-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+/* Log card full width */
+.log-card {}
+
+/* Position Card */
+.position-card {}
+
+/* Meal Card */
+.meal-card {}
+
+.panel {
+    /* legacy compat */
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+
+.panel-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+/* ── Status message ────────────────────────────────── */
+.status-message {
+    font-size: 0.78rem;
+    min-height: 1.1em;
+    transition: color 0.2s;
+    color: var(--text-muted);
+}
+
+.status-message.success {
+    color: var(--success);
+}
+
+.status-message.error {
+    color: var(--danger);
+}
+
+/* ── Responsive ────────────────────────────────────── */
+@media (max-width: 900px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .bottom-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Keyframes ─────────────────────────────────────── */
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(2.5);
+        opacity: 0;
+    }
 }

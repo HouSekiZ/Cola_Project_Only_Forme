@@ -1,14 +1,15 @@
-/* components.css – Buttons, controls, badges, etc. */
+/* components.css — Buttons, mode controls, badges, spinners */
 
-/* ── Buttons ───────────────────────────────────────── */
+/* ── Base Button Reset ──────────────────────────── */
 button {
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     border: none;
-    border-radius: 8px;
-    padding: 8px 18px;
-    transition: all 0.2s;
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    transition: all 0.18s ease;
+    font-weight: 500;
 }
 
 button:disabled {
@@ -16,166 +17,492 @@ button:disabled {
     cursor: not-allowed;
 }
 
-.btn-switch {
-    background: var(--color-primary);
-    color: #fff;
-    padding: 8px 20px;
-}
-
-.btn-switch:hover:not(:disabled) {
-    background: #6fa3ff;
-    transform: translateY(-1px);
-}
-
-/* ── Mode Buttons ──────────────────────────────────── */
-.mode-controls {
-    display: flex;
-    gap: 10px;
-}
-
+/* ── Mode Buttons (sidebar 2×2 grid) ────────────── */
 .btn-mode {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    padding: 12px 10px;
-    background: var(--color-bg);
-    border: 2px solid var(--color-border);
-    color: var(--color-text-muted);
-    border-radius: var(--radius);
-    font-size: 1rem;
+    padding: 10px 8px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    transition: all 0.2s;
 }
 
-.btn-mode.active {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background: rgba(79, 142, 247, 0.1);
+.mode-icon {
+    font-size: 1.2rem;
+}
+
+.mode-label {
+    font-size: 0.7rem;
+    font-weight: 500;
 }
 
 .btn-mode:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    color: var(--color-text);
+    border-color: var(--primary);
+    color: var(--text);
+    background: var(--primary-dim);
+    transform: translateY(-1px);
 }
 
-/* ── Camera Select ─────────────────────────────────── */
-.camera-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+.btn-mode.active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-dim);
+    box-shadow: 0 0 0 2px rgba(79, 142, 247, 0.18);
 }
 
-.camera-controls label {
-    color: var(--color-text-muted);
-    font-size: 0.9rem;
-    white-space: nowrap;
-}
-
+/* ── Camera ─────────────────────────────────────── */
 .camera-select {
     flex: 1;
-    min-width: 120px;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    color: var(--color-text);
-    border-radius: 6px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
     padding: 6px 10px;
     font-family: inherit;
-}
-
-/* ── Status Messages ───────────────────────────────── */
-.status-message {
     font-size: 0.82rem;
-    margin-top: 8px;
-    min-height: 1.2em;
-    transition: color 0.2s;
 }
 
-.status-message.success { color: var(--color-success); }
-.status-message.error   { color: var(--color-danger); }
-.status-message.loading { color: var(--color-text-muted); }
+.btn-icon {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+}
 
-/* ── Live Indicator ────────────────────────────────── */
-.live-indicator {
-    position: absolute;
-    top: 10px;
-    left: 12px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(0,0,0,0.6);
+.btn-icon:hover:not(:disabled) {
+    background: var(--surface);
+    color: var(--primary);
+}
+
+.btn-switch {
+    background: var(--primary);
     color: #fff;
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 20px;
-    letter-spacing: 0.08em;
-    z-index: 5;
+    padding: 6px 14px;
 }
 
-.live-dot {
-    width: 7px;
-    height: 7px;
-    background: var(--color-danger);
-    border-radius: 50%;
-    animation: pulse 1.2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.4; transform: scale(0.8); }
-}
-
-/* ── FPS Badge ─────────────────────────────────────── */
-.fps-badge {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    background: rgba(0,0,0,0.6);
-    color: var(--color-success);
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 20px;
-    z-index: 5;
-    letter-spacing: 0.04em;
-}
-
-/* ── Connection Status ─────────────────────────────── */
-.connection-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-}
-
+/* ── Status.dot ─────────────────────────────────── */
 .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    display: inline-block;
 }
 
-.dot-ok  { background: var(--color-success); }
-.dot-err { background: var(--color-danger); }
+.dot-ok {
+    background: var(--success);
+}
 
-/* ── Spinner ───────────────────────────────────────── */
+.dot-err {
+    background: var(--danger);
+}
+
+/* ── Spinner ─────────────────────────────────────── */
 .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid var(--color-border);
-    border-top-color: var(--color-primary);
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+/* ── Body Position Widget ─────────────────────────── */
+.pos-display {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
 }
 
-/* ── Instructions ──────────────────────────────────── */
-.instructions-panel p {
+.pos-icon-wrap {
+    width: 56px;
+    height: 56px;
+    background: var(--primary-dim);
+    border: 1px solid var(--border-glow);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    transition: background 0.3s;
+}
+
+.pos-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.pos-duration {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Flip timer */
+.flip-timer {
+    margin-bottom: 12px;
+}
+
+.flip-timer-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.flip-time-label {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.progress-track {
+    height: 8px;
+    background: var(--surface-3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1.2s linear, background-color 0.5s;
+}
+
+.progress-fill.normal {
+    background: var(--success);
+}
+
+.progress-fill.warning {
+    background: var(--warning);
+}
+
+.progress-fill.danger {
+    background: var(--danger);
+    animation: breath 1.2s ease-in-out infinite;
+}
+
+@keyframes breath {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
+}
+
+.btn-flip-done {
+    width: 100%;
+    padding: 8px;
+    background: var(--success-dim);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    color: var(--success);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-flip-done:hover {
+    background: var(--success);
+    color: #fff;
+}
+
+/* ── Meal Panel ─────────────────────────────────── */
+.btn-toggle-settings {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
+.btn-toggle-settings:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.meal-settings {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.meal-time-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.meal-time-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    min-width: 68px;
+    color: var(--text-muted);
+}
+
+.meal-time-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.meal-time-input:focus {
+    border-color: var(--primary);
+}
+
+.meal-settings-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.btn-save-meal {
+    padding: 6px 14px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.btn-save-meal:hover {
+    background: #6fa3ff;
+}
+
+.meal-save-status {
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.meal-save-status.success {
+    color: var(--success);
+}
+
+.meal-save-status.error {
+    color: var(--danger);
+}
+
+.meal-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
+}
+
+/* Meal list */
+.meal-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.meal-loading {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    padding: 8px 0;
+}
+
+.meal-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.2s;
+}
+
+.meal-item.eaten {
+    background: var(--success-dim);
+    border-color: rgba(46, 204, 113, 0.25);
+}
+
+.meal-icon {
+    font-size: 1.2rem;
+    min-width: 26px;
+    text-align: center;
+}
+
+.meal-name {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.meal-time {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.btn-meal-eaten {
+    padding: 4px 10px;
+    background: var(--success);
+    color: #fff;
+    border-radius: 5px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.btn-meal-eaten:hover {
+    background: #27ae60;
+}
+
+.meal-eaten-badge {
+    font-size: 0.75rem;
+    color: var(--success);
+    font-weight: 600;
+    padding: 3px 8px;
+    background: var(--success-dim);
+    border-radius: 10px;
+}
+
+/* ── Notification Log ─────────────────────────────── */
+.notification-log {
+    max-height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.btn-clear-log {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+}
+
+.btn-clear-log:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.log-empty {
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    padding: 8px 0;
+}
+
+.log-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    background: var(--surface-3);
+    border-left: 3px solid transparent;
+}
+
+.log-entry.log-reposition {
+    border-color: var(--warning);
+    background: var(--warning-dim);
+}
+
+.log-entry.log-meal {
+    border-color: var(--primary);
+    background: var(--primary-dim);
+}
+
+.log-time {
+    color: var(--text-muted);
+    min-width: 52px;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.log-title {
+    font-weight: 500;
+}
+
+/* ── Toast ────────────────────────────────────────── */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    min-width: 220px;
+    max-width: 300px;
+    box-shadow: var(--shadow);
+    pointer-events: auto;
+    animation: slideUp 0.3s ease;
+}
+
+.toast strong {
+    display: block;
     font-size: 0.88rem;
-    color: var(--color-text-muted);
-    line-height: 1.7;
+    margin-bottom: 2px;
+}
+
+.toast p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.toast-meal {
+    border-left: 3px solid var(--warning);
+}
+
+.toast-reposition {
+    border-left: 3px solid var(--danger);
+}
+
+.toast-info {
+    border-left: 3px solid var(--primary);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(12px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }

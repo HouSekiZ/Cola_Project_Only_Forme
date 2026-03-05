@@ -1,13 +1,35 @@
-# ละเว้นโฟลเดอร์ Virtual Environment
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
 venv/
 .venv/
 env/
+.env/
 
-# ละเว้นไฟล์โมเดลขนาดใหญ่
-*.task
-
-# อื่นๆ
-__pycache__/
+# IDEs
+.vscode/
+.idea/
+*.swp
 .DS_Store
 
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+db.sqlite3
+
+# Agent / AI
+brain/
+.gemini/
+
+# MediaPipe / ML Models
+*.task
+
+# Generated Data / Export
+*.csv
+
+# Documents (optional)
 *.md

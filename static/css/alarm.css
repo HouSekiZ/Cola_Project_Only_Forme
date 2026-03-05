@@ -1,75 +1,160 @@
-/* alarm.css – Alarm overlay styles */
+/* alarm.css — Alarm overlay, reposition alert banner */
 
+/* ── Alarm Overlay ──────────────────────────────── */
 .alarm-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(220, 20, 20, 0.92);
-    z-index: 9999;
+    z-index: 9000;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: alarm-flash 0.5s ease infinite alternate;
-}
-
-@keyframes alarm-flash {
-    from { background: rgba(220, 20, 20, 0.88); }
-    to   { background: rgba(180, 10, 10, 0.96); }
+    animation: fadeIn 0.25s ease;
 }
 
 .alarm-content {
+    position: relative;
     text-align: center;
-    color: #fff;
-    padding: 40px;
-    background: rgba(0,0,0,0.35);
-    border-radius: 16px;
-    border: 2px solid rgba(255,255,255,0.3);
+    padding: 40px 50px;
+    background: var(--surface-2);
+    border: 1px solid rgba(231, 76, 60, 0.4);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(231, 76, 60, 0.25), var(--shadow);
     max-width: 400px;
     width: 90%;
 }
 
-.alarm-icon {
-    font-size: 4rem;
-    margin-bottom: 12px;
-    animation: shake 0.4s ease infinite;
+/* Pulsing ring behind icon */
+.alarm-pulse-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160px;
+    height: 160px;
+    margin: -80px 0 0 -80px;
+    border-radius: 50%;
+    border: 3px solid rgba(231, 76, 60, 0.4);
+    animation: pulse-ring 1.5s ease-out infinite;
+    pointer-events: none;
+    /* ← ไม่ดัก click ที่ส่งผ่านมา */
 }
 
-@keyframes shake {
-    0%, 100% { transform: rotate(-8deg); }
-    50%       { transform: rotate(8deg); }
+.alarm-icon {
+    font-size: 3.5rem;
+    margin-bottom: 12px;
 }
 
 .alarm-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--danger);
+    letter-spacing: 0.02em;
     margin-bottom: 8px;
 }
 
 .alarm-message {
-    font-size: 1.1rem;
-    opacity: 0.9;
+    color: var(--text-muted);
+    font-size: 0.95rem;
     margin-bottom: 24px;
 }
 
 .btn-acknowledge {
-    background: #fff;
-    color: #c0392b;
-    font-size: 1rem;
-    font-weight: 700;
-    padding: 14px 36px;
-    border-radius: 30px;
-    border: none;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    background: var(--danger);
+    color: #fff;
+    padding: 12px 28px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 10px;
+    letter-spacing: 0.03em;
+    transition: all 0.2s;
 }
 
 .btn-acknowledge:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+    background: #c0392b;
+    transform: translateY(-1px);
 }
 
-.btn-acknowledge:active {
-    transform: scale(0.97);
+/* ── Reposition Alert Banner ────────────────────── */
+.reposition-alert {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 8000;
+    background: linear-gradient(90deg, #c0392b, #e74c3c);
+    color: #fff;
+    padding: 11px 20px;
+    box-shadow: 0 2px 12px rgba(231, 76, 60, 0.4);
+    animation: slideDown 0.3s ease;
+}
+
+.reposition-alert.hidden {
+    display: none;
+}
+
+.reposition-alert-inner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.reposition-alert-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.reposition-alert-text {
+    flex: 1;
+}
+
+.reposition-alert-text strong {
+    font-size: 0.95rem;
+}
+
+.reposition-alert-text p {
+    margin: 0;
+    font-size: 0.82rem;
+    opacity: 0.88;
+}
+
+.btn-reposition-done {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.btn-reposition-done:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Keyframes ──────────────────────────────────── */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }

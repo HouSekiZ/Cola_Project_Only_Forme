@@ -1,101 +1,14 @@
-/* notifications.css — styles สำหรับ Phase 3-4 UI components */
+/* notifications.css — Position widget, meal panel, toasts, log */
 
-/* ══════════════════════════════════════════════
-   Reposition Alert Banner
-══════════════════════════════════════════════ */
-.reposition-alert {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 900;
-    background: #ff6b35;
-    color: #fff;
-    padding: 12px 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    animation: slideDown 0.3s ease;
+/* Override old classes that notifications.js still uses */
+.progress-track {
+    /* already in components.css */
 }
 
-.reposition-alert.hidden {
-    display: none;
-}
+/* ── Position Widget (body_renderer overlay) ──── */
+.position-panel {}
 
-.reposition-alert-inner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.reposition-alert-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
-}
-
-.reposition-alert-text {
-    flex: 1;
-}
-
-.reposition-alert-text strong {
-    font-size: 1rem;
-}
-
-.reposition-alert-text p {
-    margin: 2px 0 0;
-    font-size: 0.85rem;
-    opacity: 0.9;
-}
-
-.btn-reposition-done {
-    background: #fff;
-    color: #ff6b35;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: opacity 0.2s;
-}
-
-.btn-reposition-done:hover {
-    opacity: 0.85;
-}
-
-/* ══════════════════════════════════════════════
-   Body Position Widget
-══════════════════════════════════════════════ */
-.position-panel {
-    /* ซ่อนเมื่อไม่ได้อยู่ในโหมด BODY */
-}
-
-.position-display {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-
-.position-icon {
-    font-size: 2.5rem;
-    min-width: 48px;
-    text-align: center;
-}
-
-.position-label {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--text-primary, #1a1a2e);
-}
-
-.position-duration {
-    font-size: 0.85rem;
-    color: var(--text-muted, #666);
-    margin-top: 2px;
-}
-
-/* Progress bar */
+/* ── Reposition Timer ──────────────────────────── */
 .reposition-timer-box {
     margin-bottom: 12px;
 }
@@ -103,247 +16,33 @@
 .reposition-timer-header {
     display: flex;
     justify-content: space-between;
-    font-size: 0.85rem;
-    color: var(--text-muted, #666);
+    font-size: 0.78rem;
+    color: var(--text-muted);
     margin-bottom: 6px;
 }
 
 .reposition-time-label {
     font-weight: 600;
+    color: var(--text);
 }
 
-.progress-track {
-    height: 10px;
-    background: #e0e0e0;
-    border-radius: 5px;
-    overflow: hidden;
+/* ── Body position icon state colors ───────────── */
+.pos-icon-wrap.supine {
+    background: var(--primary-dim);
+    border-color: rgba(79, 142, 247, 0.3);
 }
 
-.progress-fill {
-    height: 100%;
-    border-radius: 5px;
-    transition: width 1s linear, background-color 0.5s;
-    background: #4caf50;
+.pos-icon-wrap.left-side {
+    background: var(--warning-dim);
+    border-color: rgba(243, 156, 18, 0.3);
 }
 
-.progress-fill.warning {
-    background: #ff9800;
+.pos-icon-wrap.right-side {
+    background: var(--success-dim);
+    border-color: rgba(46, 204, 113, 0.3);
 }
 
-.progress-fill.danger {
-    background: #f44336;
-    animation: pulse 1s infinite;
-}
+/* ── Meal Panel State ────────────────────────────── */
+.meal-panel {}
 
-/* ══════════════════════════════════════════════
-   Meal Panel
-══════════════════════════════════════════════ */
-.meal-panel { }
-
-.meal-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.meal-loading {
-    color: var(--text-muted, #888);
-    font-size: 0.9rem;
-    padding: 8px 0;
-}
-
-.meal-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: #f9f9f9;
-    border: 1px solid #e0e0e0;
-    transition: background 0.2s;
-}
-
-.meal-item.eaten {
-    background: #e8f5e9;
-    border-color: #a5d6a7;
-    opacity: 0.8;
-}
-
-.meal-icon {
-    font-size: 1.3rem;
-    min-width: 28px;
-    text-align: center;
-}
-
-.meal-name {
-    flex: 1;
-    font-weight: 500;
-}
-
-.meal-time {
-    font-size: 0.85rem;
-    color: var(--text-muted, #888);
-    min-width: 44px;
-    text-align: right;
-}
-
-.btn-meal-eaten {
-    background: #4caf50;
-    color: #fff;
-    border: none;
-    padding: 5px 12px;
-    border-radius: 5px;
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-}
-
-.btn-meal-eaten:hover {
-    background: #388e3c;
-}
-
-.meal-eaten-badge {
-    font-size: 0.8rem;
-    color: #4caf50;
-    font-weight: 600;
-}
-
-/* ══════════════════════════════════════════════
-   Toast Notifications
-══════════════════════════════════════════════ */
-.toast-container {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 1100;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    pointer-events: none;
-}
-
-.toast {
-    background: #323232;
-    color: #fff;
-    padding: 12px 18px;
-    border-radius: 8px;
-    min-width: 240px;
-    max-width: 320px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    pointer-events: auto;
-    animation: fadeInUp 0.3s ease;
-}
-
-.toast strong {
-    display: block;
-    margin-bottom: 2px;
-    font-size: 0.95rem;
-}
-
-.toast p {
-    margin: 0;
-    font-size: 0.82rem;
-    opacity: 0.85;
-}
-
-.toast-meal {
-    border-left: 4px solid #ff9800;
-}
-
-.toast-reposition {
-    border-left: 4px solid #f44336;
-}
-
-.toast-info {
-    border-left: 4px solid #2196f3;
-}
-
-/* ══════════════════════════════════════════════
-   Notification Log
-══════════════════════════════════════════════ */
-.notification-log-panel { }
-
-.notification-log {
-    max-height: 180px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.log-empty {
-    color: var(--text-muted, #999);
-    font-size: 0.85rem;
-    margin: 0;
-    padding: 8px 0;
-}
-
-.log-entry {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    background: #f5f5f5;
-}
-
-.log-entry.log-reposition {
-    background: #fff3e0;
-    border-left: 3px solid #ff9800;
-}
-
-.log-entry.log-meal {
-    background: #e3f2fd;
-    border-left: 3px solid #2196f3;
-}
-
-.log-time {
-    color: var(--text-muted, #888);
-    min-width: 56px;
-    font-size: 0.78rem;
-}
-
-.log-title {
-    font-weight: 500;
-}
-
-/* ══════════════════════════════════════════════
-   Utility
-══════════════════════════════════════════════ */
-.btn-sm {
-    padding: 6px 14px;
-    font-size: 0.85rem;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-}
-
-.btn-sm:hover {
-    opacity: 0.85;
-}
-
-.btn-success {
-    background: #4caf50;
-    color: #fff;
-}
-
-/* ══════════════════════════════════════════════
-   Animations
-══════════════════════════════════════════════ */
-@keyframes slideDown {
-    from { transform: translateY(-100%); opacity: 0; }
-    to   { transform: translateY(0);     opacity: 1; }
-}
-
-@keyframes fadeInUp {
-    from { transform: translateY(12px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.6; }
-}
+.notification-log-panel {}

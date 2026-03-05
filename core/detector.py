@@ -11,6 +11,7 @@ import time
 import cv2
 import numpy as np
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Dict, Any
 
 import mediapipe as mp
@@ -24,6 +25,7 @@ from detectors.hand_detector import HandDetector
 from detectors.body_detector import BodyDetector, BodyResult
 from renderers.eye_renderer import EyeRenderer
 from renderers.hand_renderer import HandRenderer
+from renderers.body_renderer import BodyRenderer
 from utils.logger import setup_logger
 
 logger = setup_logger('detector')
@@ -46,6 +48,7 @@ class Detector:
         # Renderers
         self.eye_renderer  = EyeRenderer()
         self.hand_renderer = HandRenderer()
+        self.body_renderer = BodyRenderer()
 
         self.current_mode = "ALL"
 
@@ -54,6 +57,32 @@ class Detector:
         self._notification_manager = NotificationManager()
 
         self._pose_timestamp_ms: int = 0
+
+        # ── Frame-skip counters (ALL mode) ────────────────────────────────
+        # eye: detect ทุก 2 frames (blink ไม่ต้องการ 30fps)
+        self._EYE_SKIP         = 2
+        self._eye_frame_count  = 0
+        self._last_eye_det: Dict[str, Any] = _empty_detection()
+
+        # hand: detect ทุก 3 frames
+        self._HAND_SKIP        = 3
+        self._hand_frame_count = 0
+        self._last_hand_det:   Dict[str, Any] = _empty_detection()
+
+        # body: detect ทุก 5 frames (pose เปลี่ยนช้า)
+        self._BODY_SKIP        = 5
+        self._body_frame_count = 0
+        self._last_body_result: Optional[BodyResult] = None
+
+        # Body position vote buffer
+        self._VOTE_N      = 7
+        self._pos_votes: deque = deque(maxlen=self._VOTE_N)
+
+        # ── Resize scale สำหรับ detection (0.75 = ลด resolution 25%) ──
+        self._DET_SCALE = 0.75
+
+        # ThreadPool สำหรับ parallel detection (ALL mode)
+        self._pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="det")
 
         # FPS
         self.frame_times: deque = deque(maxlen=30)
@@ -95,7 +124,59 @@ class Detector:
     def _use_hand(self) -> bool: return self.current_mode in ('ALL', 'HAND')
     def _use_body(self) -> bool: return self.current_mode in ('ALL', 'BODY')
 
-    # ── Main pipeline ──────────────────────────────────────────────────────
+    # ── Public API — delegation to sub-managers ─────────────────────────────
+
+    def get_position_status(self) -> dict:
+        """คืนสถานะท่านอนปัจจุบัน (ใช้โดย app.py /api/status)"""
+        status = self._position_tracker.get_status()
+        return {
+            'current_position':     status.current_position,
+            'current_duration':     status.current_duration,
+            'time_until_reposition': status.time_until_reposition,
+            'reposition_due':        status.reposition_due,
+        }
+
+    def reset_reposition_timer(self):
+        """พยาบาลกด 'พลิกตัวแล้ว'"""
+        self._position_tracker.reset_reposition_timer()
+        self._notification_manager.acknowledge_reposition()
+
+    def get_meal_status(self) -> list:
+        """คืน meal status สำหรับ /api/meal_times GET"""
+        return self._notification_manager.get_meal_status()
+
+    def set_meal_times(self, meal_times: dict):
+        """ตั้งเวลาอาหาร — รับจาก /api/meal_times POST"""
+        self._notification_manager.set_meal_times(meal_times)
+
+    def mark_meal_eaten(self, meal_name: str) -> bool:
+        """บันทึกว่าทานอาหารมื้อนั้นแล้ว"""
+        return self._notification_manager.mark_meal_eaten(meal_name)
+
+    def pop_pending_notifications(self) -> list:
+        """ดึง notifications ที่ยังไม่ได้ส่ง frontend"""
+        return self._notification_manager.pop_pending()
+
+    # ── Overlay toggle ──────────────────────────────────────────────────────
+
+    # สถานะเริ่มต้น: แสดงทุก overlay
+    _overlay: Dict[str, bool] = {'eye': True, 'hand': True, 'body': True}
+
+    def toggle_overlay(self, name: str) -> bool:
+        """สลับ on/off ของ overlay ตามชื่อ (eye/hand/body)
+        Returns: สถานะใหม่ (True = แสดง)
+        """
+        name = name.lower()
+        if name not in self._overlay:
+            raise ValueError(f"Invalid overlay name: {name}")
+        self._overlay[name] = not self._overlay[name]
+        logger.info(f"Overlay '{name}' = {self._overlay[name]}")
+        return self._overlay[name]
+
+    def get_overlay_state(self) -> Dict[str, bool]:
+        """คืนสถานะ overlay ทั้งหมด"""
+        return dict(self._overlay)
+
 
     def process_frame(self) -> Optional[Dict[str, Any]]:
         start = time.time()
@@ -112,14 +193,56 @@ class Detector:
         body_result:    Optional[BodyResult] = None
 
         try:
-            if self._use_eye():
-                eye_detection = self.face_detector.detect(rgb_frame)
+            if self.current_mode == 'ALL':
+                # ── resize สำหรับ detection (ลด CPU/memory) ──
+                h, w = rgb_frame.shape[:2]
+                det_w = int(w * self._DET_SCALE)
+                det_h = int(h * self._DET_SCALE)
+                det_frame = cv2.resize(rgb_frame, (det_w, det_h),
+                                       interpolation=cv2.INTER_LINEAR)
 
-            if self._use_hand():
-                hand_detection = self.hand_detector.detect(rgb_frame)
+                # ── Selective futures: submit เฉพาะ frame ที่ถึงเวลา detect ──
+                futures = {}
 
-            if self._use_body():
-                body_result = self._run_body_detection(rgb_frame)
+                self._eye_frame_count += 1
+                if self._eye_frame_count >= self._EYE_SKIP:
+                    self._eye_frame_count = 0
+                    futures['eye'] = self._pool.submit(
+                        self.face_detector.detect, det_frame)
+
+                self._hand_frame_count += 1
+                if self._hand_frame_count >= self._HAND_SKIP:
+                    self._hand_frame_count = 0
+                    futures['hand'] = self._pool.submit(
+                        self._run_hand_detection, det_frame)
+
+                self._body_frame_count += 1
+                if self._body_frame_count >= self._BODY_SKIP:
+                    self._body_frame_count = 0
+                    futures['body'] = self._pool.submit(
+                        self._run_body_detection, det_frame)
+
+                # รอ futures ที่ submit, ใช้ cache สำหรับ frame ที่ skip
+                if 'eye' in futures:
+                    self._last_eye_det = futures['eye'].result()
+                eye_detection = self._last_eye_det
+
+                if 'hand' in futures:
+                    self._last_hand_det = futures['hand'].result()
+                hand_detection = self._last_hand_det
+
+                if 'body' in futures:
+                    self._last_body_result = futures['body'].result()
+                body_result = self._last_body_result
+
+            else:
+                # ── Single-mode: sequential ───────────────────────────────────
+                if self._use_eye():
+                    eye_detection = self.face_detector.detect(rgb_frame)
+                if self._use_hand():
+                    hand_detection = self._run_hand_detection(rgb_frame)
+                if self._use_body():
+                    body_result = self._run_body_detection(rgb_frame)
 
         except Exception as e:
             logger.error(f"Detection error: {e}", exc_info=True)
@@ -140,7 +263,11 @@ class Detector:
 
         # ── Position tracking ──────────────────────────────────────────────
         if body_result is not None:
-            self._position_tracker.update(body_result.position)
+            # Vote: เก็บ position ทุก frame ที่ detect ได้
+            self._pos_votes.append(body_result.position)
+            # เสียงข้างมากจาก buffer → ส่ง tracker
+            voted_pos = max(set(self._pos_votes), key=self._pos_votes.count)
+            self._position_tracker.update(voted_pos)
 
         # ── Notification tick ──────────────────────────────────────────────
         tracker_status    = self._position_tracker.get_status()
@@ -155,9 +282,10 @@ class Detector:
                     else AlarmType.EYE_BLINK
                 )
 
-        # ── Encode ─────────────────────────────────────────────────────────
+        # ── Encode (ALL mode ใช้ quality 55 เพื่อ throughput ดีขึ้น) ───────────
+        jpeg_q = 55 if self.current_mode == 'ALL' else 70
         _, buffer = cv2.imencode('.jpg', rendered_frame,
-                                 [cv2.IMWRITE_JPEG_QUALITY, 85])
+                                 [cv2.IMWRITE_JPEG_QUALITY, jpeg_q])
         encoded_frame = buffer.tobytes()
 
         # ── FPS ────────────────────────────────────────────────────────────
@@ -190,11 +318,11 @@ class Detector:
         out = bgr_frame.copy()
 
         # 1. Eye overlay (ใช้ EyeRenderer เดิม)
-        if self._use_eye() and eye_det.get('detected'):
+        if self._use_eye() and self._overlay.get('eye', True) and eye_det.get('detected'):
             out = self.eye_renderer.render(out, eye_det)
 
         # 2. Hand skeleton — วาดจุด landmark + เส้นเชื่อม
-        if self._use_hand() and hand_det.get('detected'):
+        if self._use_hand() and self._overlay.get('hand', True) and hand_det.get('detected'):
             data = hand_det.get('data') or {}
             landmarks = data.get('landmarks')
             alarm     = hand_det.get('alarm', False)
@@ -256,9 +384,21 @@ class Detector:
 
         return out
 
+    # ── Hand detection (with frame-skip) ───────────────────────────────────
+
+    def _run_hand_detection(self, rgb_frame: np.ndarray) -> Dict[str, Any]:
+        """รัน hand detection พร้อม frame-skip ทุก _HAND_SKIP frames"""
+        self._hand_frame_count += 1
+        if self._hand_frame_count % self._HAND_SKIP != 0:
+            return self._last_hand_det  # reuse ผลล่าสุด
+        result = self.hand_detector.detect(rgb_frame)
+        self._last_hand_det = result
+        return result
+
     # ── Body detection ─────────────────────────────────────────────────────
 
     def _run_body_detection(self, rgb_frame: np.ndarray) -> Optional[BodyResult]:
+        # ── Lazy-load body detector ──────────────────────────────────────────
         if self._body_detector is None:
             self._body_detector = BodyDetector()
             if not self._body_detector.load():
@@ -266,9 +406,16 @@ class Detector:
                 self._body_detector = None
                 return None
 
+        # ── Frame-skip: รัน MediaPipe ทุก _BODY_SKIP frames ──────────────────
+        self._body_frame_count += 1
+        if self._body_frame_count % self._BODY_SKIP != 0:
+            return self._last_body_result
+
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-        self._pose_timestamp_ms += 33
-        return self._body_detector.detect(mp_image, self._pose_timestamp_ms)
+        self._pose_timestamp_ms += self._BODY_SKIP * 33
+        result = self._body_detector.detect(mp_image, self._pose_timestamp_ms)
+        self._last_body_result = result
+        return result
 
     # ── Position & Notification public API ────────────────────────────────
 

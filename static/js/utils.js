@@ -18,6 +18,23 @@ const API = {
     }
 };
 
+/**
+ * fetchJSON — shorthand สำหรับ fetch + JSON parse
+ * รองรับทั้ง GET (default) และ POST (ถ้าใส่ options)
+ */
+async function fetchJSON(url, options = {}) {
+    const cfg = {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+    };
+    if (cfg.body && typeof cfg.body !== 'string') {
+        cfg.body = JSON.stringify(cfg.body);
+    }
+    const response = await fetch(url, cfg);
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
+    return response.json();
+}
+
 const DOM = {
     show(element) {
         if (element) element.classList.remove('hidden');

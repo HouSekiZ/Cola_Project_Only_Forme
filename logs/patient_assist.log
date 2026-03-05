@@ -33,3 +33,67 @@
 [2026-02-26 13:36:34] INFO [patient_assist.set_mode:144] Mode set to: HAND
 [2026-02-26 13:36:56] INFO [patient_assist.set_mode:144] Mode set to: BODY
 [2026-02-26 13:37:49] INFO [patient_assist.set_mode:144] Mode set to: ALL
+[2026-03-04 16:04:55] INFO [patient_assist.set_mode:144] Mode set to: EYE
+[2026-03-04 16:04:56] INFO [patient_assist.set_mode:144] Mode set to: HAND
+[2026-03-04 16:04:57] INFO [patient_assist.set_mode:144] Mode set to: BODY
+[2026-03-04 16:08:32] INFO [patient_assist.set_mode:144] Mode set to: HAND
+[2026-03-04 16:08:35] INFO [patient_assist.set_mode:144] Mode set to: ALL
+[2026-03-04 16:08:37] INFO [patient_assist.set_mode:144] Mode set to: EYE
+[2026-03-04 16:08:42] INFO [patient_assist.set_mode:144] Mode set to: ALL
+[2026-03-04 16:41:28] INFO [patient_assist.set_mode:144] Mode set to: EYE
+[2026-03-04 16:41:46] INFO [patient_assist.set_mode:144] Mode set to: HAND
+[2026-03-04 16:41:54] INFO [patient_assist.set_mode:144] Mode set to: BODY
+[2026-03-04 16:42:30] INFO [patient_assist.set_mode:144] Mode set to: ALL
+[2026-03-04 16:42:33] INFO [patient_assist.set_mode:144] Mode set to: EYE
+[2026-03-04 16:42:33] INFO [patient_assist.set_mode:144] Mode set to: HAND
+[2026-03-04 16:42:35] INFO [patient_assist.set_mode:144] Mode set to: BODY
+[2026-03-04 16:42:36] INFO [patient_assist.set_mode:144] Mode set to: HAND
+[2026-03-04 17:28:30] INFO [patient_assist.set_mode:144] Mode set to: EYE
+[2026-03-04 17:28:46] INFO [patient_assist.set_mode:144] Mode set to: HAND
+[2026-03-04 17:28:53] INFO [patient_assist.set_mode:144] Mode set to: BODY
+[2026-03-04 18:00:41] INFO [patient_assist.set_mode:144] Mode set to: EYE
+[2026-03-04 18:01:07] INFO [patient_assist.set_mode:144] Mode set to: HAND
+[2026-03-05 17:36:00] WARNING [patient_assist.<module>:57] MySQL not available — running without database persistence.
+[2026-03-05 17:36:02] WARNING [patient_assist.<module>:57] MySQL not available — running without database persistence.
+[2026-03-05 17:39:30] WARNING [patient_assist.<module>:57] MySQL not available — running without database persistence.
+[2026-03-05 17:39:31] WARNING [patient_assist.<module>:57] MySQL not available — running without database persistence.
+[2026-03-05 17:39:57] WARNING [patient_assist.<module>:57] MySQL not available — running without database persistence.
+[2026-03-05 17:39:58] WARNING [patient_assist.<module>:57] MySQL not available — running without database persistence.
+[2026-03-05 17:41:07] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:41:08] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:41:55] INFO [patient_assist.set_mode:160] Mode set to: EYE
+[2026-03-05 17:42:12] INFO [patient_assist.set_mode:160] Mode set to: HAND
+[2026-03-05 17:42:43] INFO [patient_assist.set_mode:160] Mode set to: BODY
+[2026-03-05 17:43:18] INFO [patient_assist.set_mode:160] Mode set to: ALL
+[2026-03-05 17:43:21] INFO [patient_assist.set_mode:160] Mode set to: EYE
+[2026-03-05 17:43:27] INFO [patient_assist.set_mode:160] Mode set to: BODY
+[2026-03-05 17:46:05] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:46:07] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:46:10] INFO [patient_assist.set_mode:160] Mode set to: EYE
+[2026-03-05 17:46:11] INFO [patient_assist.set_mode:160] Mode set to: BODY
+[2026-03-05 17:46:12] INFO [patient_assist.set_mode:160] Mode set to: HAND
+[2026-03-05 17:47:08] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:47:09] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:47:48] INFO [patient_assist.set_mode:160] Mode set to: EYE
+[2026-03-05 17:47:49] INFO [patient_assist.set_mode:160] Mode set to: HAND
+[2026-03-05 17:51:20] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:51:21] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:51:45] INFO [patient_assist.set_mode:170] Mode set to: BODY
+[2026-03-05 17:51:46] INFO [patient_assist.set_mode:170] Mode set to: EYE
+[2026-03-05 17:51:49] INFO [patient_assist.set_mode:170] Mode set to: HAND
+[2026-03-05 17:56:27] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:56:29] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 17:57:21] INFO [patient_assist.set_mode:183] Mode set to: BODY
+[2026-03-05 17:57:49] INFO [patient_assist.set_mode:183] Mode set to: HAND
+[2026-03-05 17:58:19] INFO [patient_assist.set_mode:183] Mode set to: EYE
+[2026-03-05 17:58:47] INFO [patient_assist.set_mode:183] Mode set to: HAND
+[2026-03-05 17:58:48] INFO [patient_assist.set_mode:183] Mode set to: EYE
+[2026-03-05 18:01:02] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 18:01:03] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 18:09:53] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 18:09:55] INFO [patient_assist.<module>:55] MySQL database connected and tables ready.
+[2026-03-05 18:10:55] INFO [patient_assist.set_mode:183] Mode set to: EYE
+[2026-03-05 18:11:03] INFO [patient_assist.set_mode:183] Mode set to: ALL
+[2026-03-05 18:11:23] INFO [patient_assist.set_mode:183] Mode set to: EYE
+[2026-03-05 18:11:25] INFO [patient_assist.set_mode:183] Mode set to: HAND
+[2026-03-05 18:11:26] INFO [patient_assist.set_mode:183] Mode set to: BODY

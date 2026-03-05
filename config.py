@@ -69,6 +69,15 @@ class Config:
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', 'logs/patient_assist.log')
 
+    # ── MySQL Database ──────────────────────────────
+    DB_HOST     = os.getenv('DB_HOST',     'localhost')
+    DB_PORT     = int(os.getenv('DB_PORT', '3306'))
+    DB_NAME     = os.getenv('DB_NAME',     'patient_assist')
+    DB_USER     = os.getenv('DB_USER',     'root')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+    DB_ENABLED  = os.getenv('DB_ENABLED',  'true').lower() == 'true'
+
+
 
 class ProductionConfig(Config):
     """Production configuration"""

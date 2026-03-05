@@ -36,6 +36,8 @@ class AlarmManager:
         self.max_history = max_history
         self.lock = threading.Lock()
         self.active_alarm: Optional[AlarmEvent] = None
+        # Optional callback: fn(alarm_type: str, metadata: dict)
+        self.on_alarm_triggered = None
 
     def trigger_alarm(self, alarm_type: AlarmType, metadata: Dict = None):
         """เพิ่ม alarm ใหม่เข้า queue"""
@@ -55,6 +57,13 @@ class AlarmManager:
             if self.active_alarm is None:
                 self.active_alarm = event
                 logger.info(f"Alarm triggered: {alarm_type.value}")
+
+        # เรียก callback นอก lock เพื่อหลีกเลี่ยง deadlock
+        if self.on_alarm_triggered:
+            try:
+                self.on_alarm_triggered(alarm_type.value, metadata or {})
+            except Exception as e:
+                logger.warning(f"on_alarm_triggered callback error: {e}")
 
     def get_active_alarm(self) -> Optional[AlarmEvent]:
         """ดึง alarm ที่ active อยู่ (ไม่ acknowledge อัตโนมัติ)"""

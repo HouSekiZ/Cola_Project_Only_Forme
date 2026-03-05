@@ -1,23 +1,28 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Assist - ระบบช่วยเหลือผู้ป่วย</title>
-
+    <title>Patient Assist — ระบบช่วยเหลือผู้ป่วย</title>
+    <meta name="description" content="ระบบตรวจจับสัญญาณผู้ป่วยอัจฉริยะด้วย AI">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/alarm.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">
 </head>
+
 <body>
 
-    <!-- ══════════════════════════════════════════
-         Alarm Overlay (SOS / Hand Signal)
-    ══════════════════════════════════════════ -->
+    <!-- ══ Alarm Overlay ══ -->
     <div id="alarmOverlay" class="alarm-overlay hidden">
         <div class="alarm-content">
+            <div class="alarm-pulse-ring"></div>
             <div class="alarm-icon">🚨</div>
             <h1 class="alarm-title">SOS DETECTED</h1>
             <p class="alarm-message" id="alarmMessage">ผู้ป่วยต้องการความช่วยเหลือ</p>
@@ -25,166 +30,228 @@
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════
-         Reposition Alert Banner
-    ══════════════════════════════════════════ -->
+    <!-- ══ Reposition Alert Banner ══ -->
     <div id="repositionAlert" class="reposition-alert hidden">
         <div class="reposition-alert-inner">
             <span class="reposition-alert-icon">⚠️</span>
             <div class="reposition-alert-text">
                 <strong>ถึงเวลาพลิกตัวผู้ป่วย</strong>
-                <p class="alert-message">ผู้ป่วยอยู่ในท่าเดิมนานเกิน 2 ชั่วโมง กรุณาพลิกตัวเพื่อป้องกันแผลกดทับ</p>
+                <p class="alert-message">ผู้ป่วยอยู่ในท่าเดิมนานเกิน 2 ชั่วโมง กรุณาพลิกตัว</p>
             </div>
             <button id="btnRepositionDone" class="btn-reposition-done">✓ พลิกตัวแล้ว</button>
         </div>
     </div>
 
-    <!-- Toast Container -->
+    <!-- ══ Toast Container ══ -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- ══════════════════════════════════════════
-         Main Layout
-    ══════════════════════════════════════════ -->
-    <div class="container">
-        <header class="app-header">
-            <h1 class="app-title">Patient <span class="highlight">Assist</span></h1>
-            <div class="connection-status" id="connectionStatus">
-                <span class="dot dot-ok"></span> เชื่อมต่อแล้ว
-            </div>
-        </header>
+    <!-- ══ App Shell ══ -->
+    <div class="app-shell">
 
-        <!-- ── Video Feed ── -->
-        <div class="video-box">
-            <div class="live-indicator">
-                <div class="live-dot"></div> LIVE
-            </div>
-            <div class="fps-badge" id="fpsBadge">-- FPS</div>
-            <img id="videoStream"
-                 src="{{ url_for('video_feed') }}"
-                 alt="Live Feed"
-                 class="video-stream">
-            <div id="loadingOverlay" class="loading-overlay hidden">
-                <div class="spinner"></div>
-                <p>กำลังโหลด...</p>
-            </div>
-        </div>
-
-        <!-- ── Camera Controls ── -->
-        <div class="panel">
-            <div class="camera-controls">
-                <label for="cameraSelect">📷 กล้อง:</label>
-                <select id="cameraSelect" class="camera-select">
-                    <option value="" disabled selected>กำลังโหลด...</option>
-                </select>
-                <button id="btnSwitchCam" class="btn-switch" disabled>เปลี่ยนกล้อง</button>
-            </div>
-            <div id="camStatus" class="status-message"></div>
-        </div>
-
-        <!-- ── Mode Controls ── -->
-        <div class="panel mode-panel">
-            <h3 class="panel-title">โหมดการตรวจจับ</h3>
-            <div class="mode-controls">
-                <button id="btnAll" class="btn-mode active" data-mode="ALL">
-                    🔄 โหมดรวม
-                    <small>ทุกระบบพร้อมกัน</small>
-                </button>
-                <button id="btnEye" class="btn-mode" data-mode="EYE">
-                    👁️ โหมดดวงตา
-                    <small>กระพริบ 3 ครั้ง</small>
-                </button>
-                <button id="btnHand" class="btn-mode" data-mode="HAND">
-                    ✋ โหมดมือ
-                    <small>แบ → กำมือ</small>
-                </button>
-                <button id="btnBody" class="btn-mode" data-mode="BODY">
-                    🛏️ โหมดร่างกาย
-                    <small>ตรวจท่านอน</small>
-                </button>
-            </div>
-            <div id="modeStatus" class="status-message"></div>
-        </div>
-
-        <!-- ── Body Position Widget ── -->
-        <div class="panel position-panel" id="positionPanel">
-            <h3 class="panel-title">🛏️ ท่านอนผู้ป่วย</h3>
-
-            <div class="position-display">
-                <div class="position-icon" id="positionIcon">🔍</div>
-                <div class="position-info">
-                    <div class="position-label" id="currentPositionLabel">กำลังตรวจจับ...</div>
-                    <div class="position-duration" id="positionDuration">--</div>
+        <!-- ── Sidebar ── -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">💊</span>
+                <div>
+                    <div class="brand-name">Patient<span class="brand-accent">Assist</span></div>
+                    <div class="brand-sub">AI Monitoring System</div>
                 </div>
             </div>
 
-            <!-- Progress bar เวลาก่อนพลิกตัว -->
-            <div class="reposition-timer-box">
-                <div class="reposition-timer-header">
-                    <span>⏱️ เวลาก่อนพลิกตัว</span>
-                    <span class="reposition-time-label" id="repositionTimeLabel">--</span>
+            <!-- System Status -->
+            <div class="sidebar-card">
+                <div class="sidebar-card-title">สถานะระบบ</div>
+                <div class="sys-status-row">
+                    <span id="connectionStatus" class="conn-badge conn-ok">
+                        <span class="dot dot-ok"></span> เชื่อมต่อแล้ว
+                    </span>
+                    <span id="fpsBadge" class="fps-chip">-- FPS</span>
                 </div>
-                <div class="progress-track">
-                    <div class="progress-fill" id="repositionProgress" style="width: 0%"></div>
+                <div class="sys-info-row">
+                    <span class="sys-label">โหมด</span>
+                    <span id="currentMode" class="sys-value mode-badge">ALL</span>
+                </div>
+                <div class="sys-info-row">
+                    <span class="sys-label">ระบบ</span>
+                    <span id="systemStatus" class="sys-value text-success">พร้อมใช้งาน</span>
                 </div>
             </div>
 
-            <button id="btnRepositionReset" class="btn-sm btn-success">
-                ✓ พลิกตัวแล้ว / Reset Timer
-            </button>
-        </div>
-
-        <!-- ── Meal Schedule Panel ── -->
-        <div class="panel meal-panel">
-            <h3 class="panel-title">🍽️ ตารางอาหาร</h3>
-            <div class="meal-list" id="mealStatusList">
-                <!-- render โดย notifications.js -->
-                <div class="meal-loading">กำลังโหลด...</div>
+            <!-- Mode Controls -->
+            <div class="sidebar-card">
+                <div class="sidebar-card-title">โหมดตรวจจับ</div>
+                <div class="mode-grid">
+                    <button id="btnAll" class="btn-mode active" data-mode="ALL">
+                        <span class="mode-icon">🔄</span>
+                        <span class="mode-label">รวม</span>
+                    </button>
+                    <button id="btnEye" class="btn-mode" data-mode="EYE">
+                        <span class="mode-icon">👁️</span>
+                        <span class="mode-label">ตา</span>
+                    </button>
+                    <button id="btnHand" class="btn-mode" data-mode="HAND">
+                        <span class="mode-icon">✋</span>
+                        <span class="mode-label">มือ</span>
+                    </button>
+                    <button id="btnBody" class="btn-mode" data-mode="BODY">
+                        <span class="mode-icon">🛏️</span>
+                        <span class="mode-label">ร่างกาย</span>
+                    </button>
+                </div>
+                <div id="modeStatus" class="status-message" style="margin-top:8px;font-size:0.78rem;"></div>
             </div>
-        </div>
 
-        <!-- ── Status Panel ── -->
-        <div class="panel status-panel">
-            <div class="status-row">
-                <span class="status-label">สถานะระบบ:</span>
-                <span id="systemStatus" class="status-value">กำลังเริ่มต้น...</span>
+            <!-- Camera -->
+            <div class="sidebar-card">
+                <div class="sidebar-card-title">กล้อง</div>
+                <div class="camera-row">
+                    <select id="cameraSelect" class="camera-select">
+                        <option value="" disabled selected>กำลังโหลด...</option>
+                    </select>
+                    <button id="btnSwitchCam" class="btn-icon" disabled title="เปลี่ยนกล้อง">🔄</button>
+                </div>
+                <div id="camStatus" class="status-message"></div>
             </div>
-            <div class="status-row">
-                <span class="status-label">โหมดปัจจุบัน:</span>
-                <span id="currentMode" class="status-value">EYE</span>
-            </div>
-        </div>
 
-        <!-- ── Notification Log ── -->
-        <div class="panel notification-log-panel">
-            <h3 class="panel-title">📋 ประวัติการแจ้งเตือน</h3>
-            <div class="notification-log" id="notificationLog">
-                <p class="log-empty">ยังไม่มีการแจ้งเตือน</p>
+            <!-- Options & Export -->
+            <div class="sidebar-card">
+                <div class="sidebar-card-title">การแสดงผล & ข้อมูล</div>
+                <!-- Overlay Toggles -->
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <button id="toggleOverlayEye" class="btn-outline active" style="flex:1"
+                        onclick="toggleOverlay('eye')" title="เปิด/ปิดเส้นตา">👁️ เส้นตา</button>
+                    <button id="toggleOverlayHand" class="btn-outline active" style="flex:1"
+                        onclick="toggleOverlay('hand')" title="เปิด/ปิดเส้นมือ">✋ เส้นมือ</button>
+                    <button id="toggleOverlayBody" class="btn-outline active" style="flex:1"
+                        onclick="toggleOverlay('body')" title="เปิด/ปิดเส้นตัว">🛏️ เส้นตัว</button>
+                </div>
+                <!-- Export Buttons -->
+                <div style="display:flex; gap:8px;">
+                    <a href="/api/export/alarms.csv" class="btn-outline"
+                        style="flex:1; text-align:center; text-decoration:none; color:inherit"
+                        title="โหลดประวัติแจ้งเตือน">📥 โหลด Alarm</a>
+                    <a href="/api/export/meals.csv" class="btn-outline"
+                        style="flex:1; text-align:center; text-decoration:none; color:inherit"
+                        title="โหลดประวัติอาหาร">📥 โหลดตารางอาหาร</a>
+                </div>
             </div>
-        </div>
 
-        <!-- ── Instructions ── -->
-        <div class="panel instructions-panel">
-            <h3 class="panel-title">วิธีใช้งาน</h3>
-            <p id="instructionAll">
-                <strong>โหมดรวม:</strong> ทำงานทุกระบบพร้อมกัน — ตรวจกระพิบตา, ท่าทางมือ และท่านอนในเวลาเดียวกัน
-            </p>
-            <p id="instructionEye" class="hidden">
-                <strong>โหมดดวงตา:</strong> กระพริบตา 3 ครั้งอย่างรวดเร็วภายใน 8 วินาที<br>
-                หรือใช้รูปแบบ SOS: กระพริบ 2 ครั้ง → หยุดสักครู่ → กระพริบ 3 ครั้ง
-            </p>
-            <p id="instructionHand" class="hidden">
-                <strong>โหมดมือ:</strong> แบมือออก (OPEN) แล้วกำมือทันที (FIST) เพื่อส่งสัญญาณ
-            </p>
-            <p id="instructionBody" class="hidden">
-                <strong>โหมดร่างกาย:</strong> ระบบตรวจจับท่านอนอัตโนมัติ
-                และแจ้งเตือนเมื่อถึงเวลาพลิกตัว (ทุก 2 ชั่วโมง)
-            </p>
-        </div>
+            <!-- Instructions -->
+            <div class="sidebar-card instr-card">
+                <div class="sidebar-card-title">วิธีใช้งาน</div>
+                <div id="instructionAll" class="instr-text">
+                    <div class="instr-item"><span class="instr-badge eye">👁️</span> กระพริบ 3 ครั้งใน 8 วิ หรือ SOS
+                        (2→3 ครั้ง)</div>
+                    <div class="instr-item"><span class="instr-badge hand">✋</span> แบมือ → กำมือ</div>
+                    <div class="instr-item"><span class="instr-badge body">🛏️</span> ระบบตรวจท่านอนอัตโนมัติ</div>
+                </div>
+                <p id="instructionEye" class="instr-text hidden">กระพริบตา 3 ครั้งภายใน 8 วินาที<br>หรือ SOS: 2 ครั้ง →
+                    หยุด → 3 ครั้ง</p>
+                <p id="instructionHand" class="instr-text hidden">แบมือออก (OPEN) แล้วกำมือ (FIST)</p>
+                <p id="instructionBody" class="instr-text hidden">ระบบตรวจท่านอนอัตโนมัติ แจ้งเตือนทุก 2 ชั่วโมง</p>
+            </div>
+        </aside>
+
+        <!-- ── Main Content ── -->
+        <main class="main-content">
+
+            <!-- Video Feed -->
+            <div class="video-card">
+                <div class="video-header">
+                    <div class="live-badge">
+                        <span class="live-dot"></span> LIVE
+                    </div>
+                    <div class="video-mode-tag" id="videoModeTag">ALL MODE</div>
+                    <div id="fpsBadgeVideo" class="fps-chip-video">-- FPS</div>
+                </div>
+                <img id="videoStream" src="{{ url_for('video_feed') }}" alt="Live Feed" class="video-stream">
+                <div id="loadingOverlay" class="loading-overlay hidden">
+                    <div class="spinner"></div>
+                    <p>กำลังโหลดกล้อง...</p>
+                </div>
+            </div>
+
+            <!-- Bottom Grid: Body + Meal -->
+            <div class="bottom-grid">
+
+                <!-- Body Position Widget -->
+                <div class="card position-card" id="positionPanel">
+                    <div class="card-header">
+                        <span class="card-title">🛏️ ท่านอนผู้ป่วย</span>
+                    </div>
+                    <div class="pos-display">
+                        <div class="pos-icon-wrap">
+                            <span class="pos-icon" id="positionIcon">🔍</span>
+                        </div>
+                        <div class="pos-info">
+                            <div class="pos-label" id="currentPositionLabel">กำลังตรวจจับ...</div>
+                            <div class="pos-duration" id="positionDuration">--</div>
+                        </div>
+                    </div>
+                    <div class="flip-timer">
+                        <div class="flip-timer-header">
+                            <span>⏱ พลิกตัว</span>
+                            <span class="flip-time-label" id="repositionTimeLabel">--</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill normal" id="repositionProgress" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <button id="btnRepositionReset" class="btn-flip-done">✓ พลิกตัวแล้ว / Reset</button>
+                </div>
+
+                <!-- Meal Schedule Panel -->
+                <div class="card meal-card">
+                    <div class="card-header">
+                        <span class="card-title">🍽️ ตารางอาหาร</span>
+                        <button class="btn-toggle-settings" id="btnToggleMealSettings"
+                            onclick="toggleMealSettings()">⚙️</button>
+                    </div>
+
+                    <!-- Settings (collapsible) -->
+                    <div class="meal-settings" id="mealSettings" style="display:none;">
+                        <div class="meal-time-row">
+                            <span class="meal-time-label">🌅 เช้า</span>
+                            <input type="time" id="mealTimeBreakfast" class="meal-time-input" value="07:00">
+                        </div>
+                        <div class="meal-time-row">
+                            <span class="meal-time-label">☀️ เที่ยง</span>
+                            <input type="time" id="mealTimeLunch" class="meal-time-input" value="12:00">
+                        </div>
+                        <div class="meal-time-row">
+                            <span class="meal-time-label">🌙 เย็น</span>
+                            <input type="time" id="mealTimeDinner" class="meal-time-input" value="18:00">
+                        </div>
+                        <div class="meal-settings-footer">
+                            <button class="btn-save-meal" onclick="saveMealTimes()">💾 บันทึก</button>
+                            <span id="mealSaveStatus" class="meal-save-status"></span>
+                        </div>
+                        <hr class="meal-divider">
+                    </div>
+
+                    <!-- Meal Status -->
+                    <div class="meal-list" id="mealStatusList">
+                        <div class="meal-loading">กำลังโหลด...</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Notification Log -->
+            <div class="card log-card">
+                <div class="card-header">
+                    <span class="card-title">📋 ประวัติการแจ้งเตือน</span>
+                    <button class="btn-clear-log" onclick="clearNotificationLog()">🗑 ล้าง</button>
+                </div>
+                <div class="notification-log" id="notificationLog">
+                    <p class="log-empty">ยังไม่มีการแจ้งเตือน</p>
+                </div>
+            </div>
+
+        </main>
     </div>
 
-    <!-- ══════════════════════════════════════════
-         Audio
-    ══════════════════════════════════════════ -->
+    <!-- Audio -->
     <audio id="alarmSound" loop preload="auto">
         <source src="{{ url_for('static', filename='audio/alarm.mp3') }}" type="audio/mpeg">
     </audio>
@@ -195,14 +262,23 @@
         <source src="{{ url_for('static', filename='audio/meal_notification.mp3') }}" type="audio/mpeg">
     </audio>
 
-    <!-- ══════════════════════════════════════════
-         Scripts (order matters)
-    ══════════════════════════════════════════ -->
+    <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/alarm.js') }}"></script>
     <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        function toggleMealSettings() {
+            const s = document.getElementById('mealSettings');
+            s.style.display = s.style.display === 'none' ? 'block' : 'none';
+        }
+        function clearNotificationLog() {
+            const log = document.getElementById('notificationLog');
+            if (log) log.innerHTML = '<p class="log-empty">ล้างประวัติแล้ว</p>';
+        }
+    </script>
 
 </body>
+
 </html>
